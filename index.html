@@ -316,12 +316,8 @@ function fbUrl(path) {
 }
 
 function fbGet(path) {
-  var ctrl = window.AbortController ? new AbortController() : null;
-  var t;
-  var p = fetch(fbUrl(path), ctrl ? {signal: ctrl.signal} : {})
-    .then(function(r) { clearTimeout(t); return r.json(); });
-  if (ctrl) t = setTimeout(function() { ctrl.abort(); }, 49000);
-  return p;
+  return fetch(fbUrl(path), {})
+    .then(function(r) { return r.json(); });
 }
 
 function fbSet(path, val) {
@@ -331,7 +327,6 @@ function fbSet(path, val) {
     body: JSON.stringify(val)
   }).then(function(r) { return r.json(); });
 }
-
 /* ---- SETUP ---- */
 function doSetup() {
   var u = (document.getElementById('cfg-url').value || '').trim().replace(/\/+$/, '');
