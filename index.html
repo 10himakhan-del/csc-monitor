@@ -165,6 +165,13 @@ html{overscroll-behavior-y:none;background:var(--bg);}
       <p>Firebase Realtime Database Dashboard</p>
     </div>
 
+    <!-- Saved Links: shown when user has previously generated links from dashboard -->
+    <div id="saved-links-section" style="display:none;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">&#128279; Saved Links</div>
+      <div id="saved-links-list"></div>
+      <div style="height:1px;background:#e2e8f0;margin:14px 0;"></div>
+    </div>
+
     <!-- Quick-connect: shown when URL has furl/key/node params embedded -->
     <div id="qc-section" style="display:none;">
       <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#166534;text-align:center;">
@@ -210,7 +217,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 <div id="app">
   <div class="topbar">
     <div class="tb-l"><span class="live-dot"></span> CSC Monitor</div>
-    <div class="tb-r"><button class="xbtn" onclick="doLogout()">Logout</button></div>
+    <div class="tb-r"><button class="xbtn" onclick="openLinkGen()" style="background:#0c9c5e;color:#fff;border-color:#0a7d4a;">&#128279; Link</button><button class="xbtn" onclick="doLogout()">Logout</button></div>
   </div>
   <div class="search-wrap">
     <div class="sw">
@@ -509,29 +516,14 @@ var QC_PARAMS = null; /* set if URL params were found */
 
 function readUrlParams() {
   try {
+    /* Only read from actual URL - never from sessionStorage (security risk) */
     var params = new URLSearchParams(window.location.search);
     var furl = params.get('furl');
     var key  = params.get('key');
     var node = params.get('node') || 'csc6';
     var pid  = params.get('pid') || '';
-
-    /* Also check sessionStorage - in case GitHub Pages did a soft redirect
-       and the URL params were lost on reload */
-    if (!furl) {
-      try {
-        var saved = sessionStorage.getItem('csc_qc');
-        if (saved) {
-          var parsed = JSON.parse(saved);
-          furl = parsed.furl; key = parsed.key; node = parsed.node; pid = parsed.pid;
-        }
-      } catch(e2) {}
-    }
-
     if (furl) {
       QC_PARAMS = { furl: furl.replace(/\/+$/, ''), key: key || '', node: node, pid: pid };
-      /* Save to sessionStorage so it survives page reloads */
-      try { sessionStorage.setItem('csc_qc', JSON.stringify(QC_PARAMS)); } catch(e3) {}
-      /* Show quick-connect screen, hide full setup */
       document.getElementById('qc-section').style.display = 'block';
       document.getElementById('full-setup-section').style.display = 'none';
       setTimeout(function() {
@@ -553,18 +545,31 @@ function doQuickConnect() {
   DB = QC_PARAMS.furl;
   APIKEY = QC_PARAMS.key;
   NODE = QC_PARAMS.node;
-  /* Verify password against Firebase Admin_Password node */
-  fbGet('Admin_Password')
+  if (!pass) {
+    btn.disabled = false; btn.textContent = '⚡ Connect';
+    errEl.style.display = 'block';
+    errEl.textContent = 'Password daalo!';
+    return;
+  }
+  /* Verify password against Firebase Admin_Password node
+     Using fbGetRoot because Admin_Password is at root of NODE, not under All_User/ */
+  fbGetRoot(NODE + '/Admin_Password')
     .then(function(storedPass) {
-      if (storedPass === null || storedPass === undefined || String(storedPass) === pass || !storedPass) {
-        /* Connected successfully */
+      if (!storedPass) {
+        /* No password set in Firebase yet */
+        btn.disabled = false; btn.textContent = '⚡ Connect';
+        errEl.style.display = 'block';
+        errEl.textContent = 'Firebase mein password set nahi hai. Pehle dashboard se set karo.';
+        return;
+      }
+      if (String(storedPass) === pass) {
         document.getElementById('setup-screen').style.display = 'none';
         document.getElementById('app').style.display = 'flex';
         startInfoSSE();
       } else {
         btn.disabled = false; btn.textContent = '⚡ Connect';
         errEl.style.display = 'block';
-        errEl.textContent = 'Galat password!';
+        errEl.textContent = '❌ Galat password!';
       }
     })
     .catch(function(e) {
@@ -583,7 +588,8 @@ function showFullSetup() {
 
 window.addEventListener('load', function() {
   renderProfiles();
-  readUrlParams(); /* check if launched from a pre-configured link */
+  renderSavedLinks();
+  readUrlParams();
 });
 
 /* ===== SETUP ===== */
@@ -2231,6 +2237,149 @@ function doDeleteDevices(devs, btn) {
       done++; if(done>=total){ btn.textContent='Delete 10+ Days Offline Devices'; btn.disabled=false; }
     });
   });
+}
+</script>
+
+<!-- ===== LINK GENERATOR DIALOG ===== -->
+<div class="overlay" id="dlg-linkgen" style="display:none;">
+  <div class="dlg" style="max-width:340px;">
+    <div class="dlg-hdr">&#128279; Link Generator</div>
+    <div class="dlg-body">
+      <p style="font-size:13px;color:#46594e;margin-bottom:14px;">
+        Yeh link kisi ko bhi bhejo — woh sirf password daalke seedha connect ho jaayega, koi aur setup nahi.
+      </p>
+
+      <!-- Password to share - fetched from Firebase -->
+      <div style="background:#fefce8;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">&#128272; Link kholne ka Password</div>
+        <div id="lg-pass-show" style="font-size:22px;font-weight:800;color:#92400e;letter-spacing:3px;font-family:monospace;">---</div>
+        <div style="font-size:11px;color:#a16207;margin-top:4px;">Yeh password link ke saath share karo</div>
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Generated Link:</div>
+        <div id="lg-link-text" style="font-size:11px;color:#0c9c5e;word-break:break-all;line-height:1.5;font-family:monospace;"></div>
+      </div>
+      <button class="dbtn" onclick="copyLinkGen()" id="lg-copy-btn">&#128203; Link Copy Karo</button>
+      <button class="dbtn-cancel" onclick="closeD('dlg-linkgen')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openLinkGen() {
+  var base = (window.location.origin + window.location.pathname).split('?')[0];
+  var link = base
+    + '?furl=' + encodeURIComponent(DB)
+    + '&key='  + encodeURIComponent(APIKEY || '')
+    + '&node=' + encodeURIComponent(NODE || 'csc6');
+  document.getElementById('lg-link-text').textContent = link;
+  document.getElementById('lg-copy-btn').textContent = '📋 Link Copy Karo';
+  /* Fetch current password from Firebase to show it clearly */
+  var passEl = document.getElementById('lg-pass-show');
+  if (passEl) passEl.textContent = 'Fetch ho raha hai...';
+  fbGetRoot(NODE + '/Admin_Password').then(function(p) {
+    if (passEl) passEl.textContent = p ? String(p) : '(set nahi hai — pehle Change se set karo)';
+  }).catch(function() {
+    if (passEl) passEl.textContent = '(fetch fail)';
+  });
+  /* Auto-save this link to localStorage so it appears on setup screen next time */
+  saveLinkToLocal(link, NODE);
+  renderSavedLinks();
+  openD('dlg-linkgen');
+}
+
+function saveLinkToLocal(link, name) {
+  try {
+    var links = JSON.parse(localStorage.getItem('csc_saved_links') || '[]');
+    /* Update if same node already saved, else add new */
+    var found = false;
+    for (var i = 0; i < links.length; i++) {
+      if (links[i].name === name) { links[i].link = link; found = true; break; }
+    }
+    if (!found) links.push({ name: name, link: link });
+    localStorage.setItem('csc_saved_links', JSON.stringify(links));
+  } catch(e) {}
+}
+
+function deleteSavedLink(name) {
+  try {
+    var links = JSON.parse(localStorage.getItem('csc_saved_links') || '[]');
+    links = links.filter(function(l) { return l.name !== name; });
+    localStorage.setItem('csc_saved_links', JSON.stringify(links));
+    renderSavedLinks();
+  } catch(e) {}
+}
+
+function renderSavedLinks() {
+  try {
+    var links = JSON.parse(localStorage.getItem('csc_saved_links') || '[]');
+    var sec = document.getElementById('saved-links-section');
+    var list = document.getElementById('saved-links-list');
+    if (!sec || !list) return;
+    if (!links.length) { sec.style.display = 'none'; return; }
+    sec.style.display = 'block';
+    list.innerHTML = '';
+    links.forEach(function(item) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+      var btn = document.createElement('button');
+      btn.style.cssText = 'flex:1;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;color:#0c9c5e;cursor:pointer;text-align:left;';
+      btn.innerHTML = '&#128279; ' + item.name;
+      btn.onclick = (function(lnk) { return function() {
+        /* Load this saved link - parse its params and show password screen */
+        var url = new URL(lnk);
+        var furl = url.searchParams.get('furl');
+        var key  = url.searchParams.get('key');
+        var node = url.searchParams.get('node') || 'csc6';
+        if (furl) {
+          QC_PARAMS = { furl: furl.replace(/\/+$/, ''), key: key || '', node: node };
+          document.getElementById('qc-section').style.display = 'block';
+          document.getElementById('full-setup-section').style.display = 'none';
+          document.getElementById('qc-pass').value = '';
+          document.getElementById('qc-err').style.display = 'none';
+          document.getElementById('qc-btn').disabled = false;
+          document.getElementById('qc-btn').textContent = '⚡ Connect';
+          setTimeout(function() { document.getElementById('qc-pass').focus(); }, 100);
+        }
+      }; })(item.link);
+      var del = document.createElement('button');
+      del.style.cssText = 'background:none;border:1px solid #fca5a5;border-radius:8px;padding:8px 10px;font-size:12px;color:#dc2626;cursor:pointer;';
+      del.innerHTML = '&#10005;';
+      del.onclick = (function(nm) { return function() { deleteSavedLink(nm); }; })(item.name);
+      row.appendChild(btn);
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  } catch(e) {}
+}
+
+function copyLinkGen() {
+  var txt = document.getElementById('lg-link-text').textContent;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function() {
+      document.getElementById('lg-copy-btn').textContent = '✅ Copied!';
+      setTimeout(function() {
+        document.getElementById('lg-copy-btn').textContent = '📋 Link Copy Karo';
+      }, 2000);
+    }).catch(function() { fallbackCopyLinkGen(txt); });
+  } else {
+    fallbackCopyLinkGen(txt);
+  }
+}
+
+function fallbackCopyLinkGen(txt) {
+  var ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try {
+    document.execCommand('copy');
+    document.getElementById('lg-copy-btn').textContent = '✅ Copied!';
+    setTimeout(function() {
+      document.getElementById('lg-copy-btn').textContent = '📋 Link Copy Karo';
+    }, 2000);
+  } catch(e) { showToast('Copy manually karo'); }
+  document.body.removeChild(ta);
 }
 </script>
 
