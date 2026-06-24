@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSC Monitor — Admin Panel</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:#f0fdf4;min-height:100vh;padding:16px;}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.fg{margin-bottom:12px;}
+.fg label{display:block;font-size:11px;font-weight:700;color:#64748b;
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;}
+.fg input,.fg select{width:100%;padding:11px 13px;
+  border:1.5px solid #d1fae5;border-radius:10px;font-size:14px;
+  font-family:inherit;outline:none;background:#fff;}
+.fg input:focus{border-color:#0c9c5e;}
+.btn{border:none;border-radius:10px;padding:11px 16px;font-weight:800;
+  font-size:13px;cursor:pointer;font-family:inherit;}
+.btn-green{background:#0c9c5e;color:#fff;}
+.btn-outline{background:#f0fdf4;color:#0c9c5e;border:1.5px solid #bbf7d0;}
+.btn-red{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;}
+.btn-gray{background:#f1f5f9;color:#64748b;}
+.plan-pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;}
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-ok{background:#f0fdf4;color:#16a34a;}
+.badge-warn{background:#fefce8;color:#d97706;}
+.badge-exp{background:#fef2f2;color:#dc2626;}
+.badge-none{background:#f1f5f9;color:#64748b;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:100;align-items:flex-end;justify-content:center;padding:16px;}
+.overlay.show{display:flex;}
+.modal{background:#fff;border-radius:20px;padding:20px;width:100%;
+  max-width:420px;max-height:90vh;overflow-y:auto;}
+.tabs{display:flex;gap:8px;margin-bottom:12px;}
+.tab{background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;
+  padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;
+  font-family:inherit;color:#64748b;}
+.tab.active{background:#0c9c5e;color:#fff;border-color:#0c9c5e;}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+.stat-box{background:#fff;border-radius:14px;padding:12px 10px;text-align:center;
+  box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.stat-num{font-size:24px;font-weight:900;}
+.stat-lbl{font-size:11px;color:#64748b;font-weight:600;}
+.plan-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.plan-btn{border-radius:10px;padding:10px 6px;font-weight:800;font-size:12px;
+  cursor:pointer;font-family:inherit;text-align:center;border:2px solid;}
+.month-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.month-btn{border-radius:10px;padding:10px;font-weight:800;font-size:13px;
+  cursor:pointer;font-family:inherit;text-align:center;border:2px solid #0c9c5e;}
+#toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  background:#1e293b;color:#fff;padding:10px 20px;border-radius:12px;
+  font-size:13px;font-weight:600;z-index:999;display:none;white-space:nowrap;}
+.alert-red{background:#fef2f2;border:1.5px solid #fecaca;border-radius:14px;
+  padding:12px 14px;margin-bottom:14px;font-size:13px;color:#dc2626;font-weight:600;}
+.client-card{background:#fff;border-radius:16px;padding:14px 16px;
+  margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.client-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+
+/* Login screen */
+#login-screen{display:flex;align-items:center;justify-content:center;
+  min-height:100vh;padding:20px;}
+.login-card{background:#fff;border-radius:20px;padding:28px 24px;
+  width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.12);}
+.shake{animation:shake .4s ease;}
+@keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-8px);}
+  40%{transform:translateX(8px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
+.err-box{background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;
+  padding:10px 12px;margin-top:12px;font-size:13px;color:#dc2626;
+  font-weight:600;display:none;}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div style="text-align:center;font-size:44px;margin-bottom:10px;">🔐</div>
+    <h2 style="text-align:center;color:#0c9c5e;font-size:20px;margin-bottom:4px;">CSC Monitor</h2>
+    <p style="text-align:center;color:#64748b;font-size:13px;margin-bottom:22px;">Admin Panel — Access Restricted</p>
+    <div class="fg">
+      <label>Admin Password</label>
+      <input id="login-pass" type="password" placeholder="Enter password"
+        onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn btn-green" style="width:100%;padding:13px;font-size:15px;" onclick="doLogin()">
+      ⚡ Login
+    </button>
+    <div class="err-box" id="login-err">❌ Galat password!</div>
+  </div>
+</div>
+
+<!-- ===== MAIN PANEL (hidden until login) ===== -->
+<div id="main-panel" style="display:none;">
+
+<!-- Header -->
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+  <div>
+    <div style="font-size:18px;font-weight:900;color:#0c9c5e;">📊 CSC Monitor</div>
+    <div style="font-size:12px;color:#64748b;">Subscription Admin Panel</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-green" onclick="openAddClient()" style="font-size:14px;padding:10px 18px;border-radius:12px;">+ Add Client</button>
+    <button class="btn btn-gray" onclick="doLogout()" style="font-size:13px;padding:10px 14px;">Logout</button>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat-box"><div class="stat-num" id="s-total" style="color:#0c9c5e;">0</div><div class="stat-lbl">Total</div></div>
+  <div class="stat-box"><div class="stat-num" id="s-active" style="color:#16a34a;">0</div><div class="stat-lbl">Active</div></div>
+  <div class="stat-box"><div class="stat-num" id="s-due" style="color:#dc2626;">0</div><div class="stat-lbl">Due/Exp</div></div>
+</div>
+
+<div class="alert-red" id="due-alert" style="display:none;">
+  ⚠️ <span id="due-msg"></span>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="setTab('all',this)">All</button>
+  <button class="tab" onclick="setTab('due',this)">Due / Expired</button>
+  <button class="tab" onclick="setTab('active',this)">Active</button>
+</div>
+
+<div id="client-list"></div>
+
+</div><!-- end main-panel -->
+
+<!-- ===== ADD CLIENT MODAL ===== -->
+<div class="overlay" id="modal-add">
+  <div class="modal">
+    <div style="font-weight:800;font-size:16px;margin-bottom:16px;color:#0c9c5e;">➕ New Client</div>
+    <div class="fg"><label>Client Name *</label>
+      <input id="a-name" placeholder="e.g. Ramesh Sharma"/></div>
+    <div class="fg"><label>Firebase URL *</label>
+      <input id="a-url" placeholder="https://xxx-default-rtdb.firebaseio.com" type="url"/></div>
+    <div class="fg"><label>API Key</label>
+      <input id="a-key" placeholder="AIzaSy..." type="password"/></div>
+    <div class="fg"><label>Main Node</label>
+      <input id="a-node" value="csc6"/></div>
+    <div class="fg"><label>Plan</label>
+      <div class="plan-grid">
+        <button class="plan-btn" data-plan="basic" data-price="5000"
+          style="background:#3b82f618;color:#3b82f6;border-color:#3b82f6;"
+          onclick="selectPlan(this)">Basic<br><span style="font-size:11px">₹5,000</span></button>
+        <button class="plan-btn" data-plan="standard" data-price="10000"
+          style="background:#f8fafc;color:#8b5cf6;border-color:#8b5cf6;"
+          onclick="selectPlan(this)">Standard<br><span style="font-size:11px">₹10,000</span></button>
+        <button class="plan-btn" data-plan="premium" data-price="15000"
+          style="background:#f8fafc;color:#f59e0b;border-color:#f59e0b;"
+          onclick="selectPlan(this)">Premium<br><span style="font-size:11px">₹15,000</span></button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn btn-gray" onclick="closeModal('modal-add')">Cancel</button>
+      <button class="btn btn-green" onclick="saveClient()">Save Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAYMENT MODAL ===== -->
+<div class="overlay" id="modal-pay">
+  <div class="modal">
+    <div style="font-weight:800;font-size:16px;color:#0c9c5e;margin-bottom:4px;">💳 Record Payment</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:14px;" id="pay-client-name"></div>
+    <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Current Status</div>
+      <span id="pay-status-badge"></span>
+      <div style="font-size:12px;color:#64748b;margin-top:6px;" id="pay-current-expiry"></div>
+    </div>
+    <div class="fg"><label>Months</label>
+      <div class="month-grid">
+        <button class="month-btn" data-months="1" onclick="selectMonths(this)" style="background:#0c9c5e;color:#fff;">
+          1 Month<br><span class="month-price" style="font-size:11px;"></span></button>
+        <button class="month-btn" data-months="2" onclick="selectMonths(this)" style="background:#fff;color:#0c9c5e;">
+          2 Months<br><span class="month-price" style="font-size:11px;"></span></button>
+        <button class="month-btn" data-months="3" onclick="selectMonths(this)" style="background:#fff;color:#0c9c5e;">
+          3 Months<br><span class="month-price" style="font-size:11px;"></span></button>
+      </div>
+    </div>
+    <div style="background:#fefce8;border:1.5px solid #fde68a;border-radius:10px;
+      padding:10px 14px;margin-bottom:14px;font-size:13px;">
+      <span style="color:#92400e;font-weight:700;">New expiry: </span>
+      <span style="color:#92400e;" id="pay-new-expiry"></span>
+    </div>
+    <div class="fg"><label>Note (optional)</label>
+      <input id="pay-note" placeholder="e.g. GPay, cash, UPI..."/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn btn-gray" onclick="closeModal('modal-pay')">Cancel</button>
+      <button class="btn btn-green" onclick="confirmPayment()">✅ Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================================================================
+   SECURITY: Password is stored as SHA-256 hash only.
+   Plain text password is NEVER in this file.
+   Even if someone reads source code, they cannot reverse the hash.
+   =================================================================== */
+var ADMIN_HASH = 'd8ac7a48da7242925919a929ef4f0ac44fce7a662ac25e4a4dc2df43009e7fe1';
+
+/* SHA-256 implementation (pure JS, no external dependency) */
+function sha256(str) {
+  function rightRotate(val, amt) { return (val >>> amt) | (val << (32 - amt)); }
+  var h = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
+            0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  var k = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+            0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+            0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+            0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+            0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+            0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+            0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+            0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  var msg = unescape(encodeURIComponent(str));
+  var bytes = []; for(var i=0;i<msg.length;i++) bytes.push(msg.charCodeAt(i));
+  bytes.push(0x80);
+  while(bytes.length % 64 !== 56) bytes.push(0);
+  var len = (msg.length * 8);
+  for(var i=7;i>=0;i--) { bytes.push(len >>> (i*8) & 0xff); }
+  for(var chunk=0;chunk<bytes.length;chunk+=64) {
+    var w = []; var i;
+    for(i=0;i<16;i++) w[i] = (bytes[chunk+i*4]<<24)|(bytes[chunk+i*4+1]<<16)|(bytes[chunk+i*4+2]<<8)|bytes[chunk+i*4+3];
+    for(i=16;i<64;i++) {
+      var s0 = rightRotate(w[i-15],7)^rightRotate(w[i-15],18)^(w[i-15]>>>3);
+      var s1 = rightRotate(w[i-2],17)^rightRotate(w[i-2],19)^(w[i-2]>>>10);
+      w[i] = (w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    var a=h[0],b=h[1],c=h[2],d=h[3],e=h[4],f=h[5],g=h[6],hh=h[7];
+    for(i=0;i<64;i++) {
+      var S1 = rightRotate(e,6)^rightRotate(e,11)^rightRotate(e,25);
+      var ch = (e&f)^((~e)&g);
+      var t1 = (hh+S1+ch+k[i]+w[i])|0;
+      var S0 = rightRotate(a,2)^rightRotate(a,13)^rightRotate(a,22);
+      var maj = (a&b)^(a&c)^(b&c);
+      var t2 = (S0+maj)|0;
+      hh=g; g=f; f=e; e=(d+t1)|0; d=c; c=b; b=a; a=(t1+t2)|0;
+    }
+    h[0]=(h[0]+a)|0; h[1]=(h[1]+b)|0; h[2]=(h[2]+c)|0; h[3]=(h[3]+d)|0;
+    h[4]=(h[4]+e)|0; h[5]=(h[5]+f)|0; h[6]=(h[6]+g)|0; h[7]=(h[7]+hh)|0;
+  }
+  var hex = '';
+  for(var i=0;i<8;i++) {
+    hex += ('00000000' + (h[i]>>>0).toString(16)).slice(-8);
+  }
+  return hex;
+}
+
+/* ===== LOGIN ===== */
+var SESSION_KEY = 'csc_admin_auth';
+
+function doLogin() {
+  var pass = document.getElementById('login-pass').value;
+  var hash = sha256(pass);
+  if (hash === ADMIN_HASH) {
+    /* Store session flag (not the password, just a temporary flag) */
+    sessionStorage.setItem(SESSION_KEY, '1');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-panel').style.display = 'block';
+    renderAll();
+  } else {
+    var box = document.getElementById('login-err');
+    box.style.display = 'block';
+    var card = box.closest('.login-card');
+    card.classList.remove('shake');
+    void card.offsetWidth; /* force reflow for animation restart */
+    card.classList.add('shake');
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem(SESSION_KEY);
+  document.getElementById('main-panel').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-err').style.display = 'none';
+}
+
+/* Auto-restore session if already logged in this browser tab */
+window.addEventListener('load', function() {
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-panel').style.display = 'block';
+    renderAll();
+  }
+});
+
+/* ===== REST OF APP ===== */
+var PLANS = {
+  basic:    {label:'Basic',    price:5000,  color:'#3b82f6'},
+  standard: {label:'Standard', price:10000, color:'#8b5cf6'},
+  premium:  {label:'Premium',  price:15000, color:'#f59e0b'},
+};
+var BASE_URL = 'https://10himakhan-del.github.io/csc-monitor/';
+var clients = [];
+var curTab = 'all';
+var curPayClient = null;
+var curPlan = 'basic';
+var curMonths = 1;
+
+function saveAll() { localStorage.setItem('csc_clients', JSON.stringify(clients)); }
+function loadAll() {
+  try { clients = JSON.parse(localStorage.getItem('csc_clients') || '[]'); }
+  catch(e) { clients = []; }
+}
+
+function daysLeft(expiry) {
+  if (!expiry) return null;
+  return Math.ceil((new Date(expiry) - new Date()) / 86400000);
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+}
+function badgeHtml(expiry) {
+  var d = daysLeft(expiry);
+  if (d===null) return '<span class="badge badge-none">No Plan</span>';
+  if (d<0)  return '<span class="badge badge-exp">❌ Expired</span>';
+  if (d<=5) return '<span class="badge badge-warn">⚠️ '+d+'d left</span>';
+  return '<span class="badge badge-ok">✅ Active · '+d+'d</span>';
+}
+function planBadge(planId) {
+  var p = PLANS[planId]||PLANS.basic;
+  return '<span class="plan-pill" style="background:'+p.color+'18;color:'+p.color+';">'
+    +p.label+' · ₹'+p.price.toLocaleString('en-IN')+'/mo</span>';
+}
+function genLink(c) {
+  return BASE_URL+'?furl='+encodeURIComponent(c.fbUrl)
+    +'&key='+encodeURIComponent(c.apiKey||'')
+    +'&node='+encodeURIComponent(c.node||'csc6');
+}
+function showToast(msg) {
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.style.display='block';
+  clearTimeout(window._tt);
+  window._tt=setTimeout(function(){t.style.display='none';},3000);
+}
+function copyText(txt,label) {
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).catch(function(){});
+  showToast('📋 Copied: '+label);
+}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+function setTab(tab,el) {
+  curTab=tab;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  renderList();
+}
+
+function renderAll() {
+  loadAll();
+  var total=clients.length;
+  var active=clients.filter(function(c){var d=daysLeft(c.expiry);return d!==null&&d>5;}).length;
+  var due=clients.filter(function(c){var d=daysLeft(c.expiry);return d===null||d<=5;}).length;
+  document.getElementById('s-total').textContent=total;
+  document.getElementById('s-active').textContent=active;
+  document.getElementById('s-due').textContent=due;
+  var al=document.getElementById('due-alert');
+  if(due>0){
+    al.style.display='block';
+    document.getElementById('due-msg').textContent=due+' client'+(due>1?'s':'')+' ka payment due / expire ho gaya!';
+  } else { al.style.display='none'; }
+  renderList();
+}
+
+function renderList() {
+  var filtered=clients.filter(function(c){
+    if(curTab==='due'){var d=daysLeft(c.expiry);return d===null||d<=5;}
+    if(curTab==='active'){var d=daysLeft(c.expiry);return d!==null&&d>5;}
+    return true;
+  });
+  var list=document.getElementById('client-list');
+  if(!filtered.length){
+    list.innerHTML='<div style="text-align:center;color:#94a3b8;padding:40px;font-size:14px;">'
+      +(clients.length===0?'Koi client nahi — "+Add Client" se shuru karo':'Is category mein koi client nahi')
+      +'</div>';
+    return;
+  }
+  var html='';
+  filtered.forEach(function(c){
+    var p=PLANS[c.plan]||PLANS.basic;
+    var expired=daysLeft(c.expiry)!==null&&daysLeft(c.expiry)<0;
+    html+='<div class="client-card" style="border-left:4px solid '+p.color+';'
+      +(expired?'box-shadow:0 0 0 2px #fecaca;':'')+'">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+      +'<div style="font-weight:800;font-size:15px;color:#1e293b;">'+c.name+'</div>'
+      +badgeHtml(c.expiry)+'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+      +planBadge(c.plan)
+      +'<span class="plan-pill" style="background:#f8fafc;color:#64748b;">Node: '+c.node+'</span>'
+      +'</div>'
+      +'<div style="font-size:12px;color:#64748b;margin-bottom:4px;">'
+      +(c.expiry?(expired?'❌ Expired: ':'📅 Valid till: ')+fmtDate(c.expiry):'📅 Plan set nahi hai')+'</div>'
+      +'<div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Added: '+fmtDate(c.createdAt)+'</div>'
+      +'<div class="client-actions">'
+      +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="copyText(\''+genLink(c).replace(/'/g,"\\'")+'\',' +'\'Link\')">🔗 Link</button>'
+      +'<button class="btn '+(expired?'btn-red':'btn-green')+'" style="font-size:12px;padding:7px 12px;" onclick="openPayment(\''+c.id+'\')">'
+      +'💳 '+(expired?'Renew':'Payment')+'</button>'
+      +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="showHistory(\''+c.id+'\')">📋 History</button>'
+      +'<button class="btn btn-red" style="font-size:12px;padding:7px 12px;" onclick="deleteClient(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')">🗑️</button>'
+      +'</div></div>';
+  });
+  list.innerHTML=html;
+}
+
+function selectPlan(btn) {
+  curPlan=btn.dataset.plan;
+  document.querySelectorAll('.plan-btn').forEach(function(b){
+    var bp=PLANS[b.dataset.plan];
+    var sel=b.dataset.plan===curPlan;
+    b.style.background=sel?bp.color+'18':'#f8fafc';
+    b.style.borderWidth=sel?'2.5px':'2px';
+  });
+}
+function openAddClient() {
+  document.getElementById('a-name').value='';
+  document.getElementById('a-url').value='';
+  document.getElementById('a-key').value='';
+  document.getElementById('a-node').value='csc6';
+  curPlan='basic';
+  selectPlan(document.querySelector('.plan-btn[data-plan="basic"]'));
+  openModal('modal-add');
+}
+function saveClient() {
+  var name=document.getElementById('a-name').value.trim();
+  var url=document.getElementById('a-url').value.trim().replace(/\/+$/,'');
+  var key=document.getElementById('a-key').value.trim();
+  var node=document.getElementById('a-node').value.trim()||'csc6';
+  if(!name||!url){showToast('Naam aur Firebase URL zaroori hai!');return;}
+  var c={id:'c_'+Date.now(),name:name,fbUrl:url,apiKey:key,node:node,
+    plan:curPlan,expiry:null,payments:[],createdAt:new Date().toISOString()};
+  clients.unshift(c); saveAll(); renderAll();
+  closeModal('modal-add'); showToast('✅ Client add: '+name);
+}
+
+function updatePayPreview() {
+  if(!curPayClient) return;
+  var p=PLANS[curPayClient.plan]||PLANS.basic;
+  document.querySelectorAll('.month-price').forEach(function(el,i){
+    el.textContent='₹'+(p.price*(i+1)).toLocaleString('en-IN');
+  });
+  var base=curPayClient.expiry&&new Date(curPayClient.expiry)>new Date()
+    ?new Date(curPayClient.expiry):new Date();
+  var nd=new Date(base); nd.setMonth(nd.getMonth()+curMonths);
+  document.getElementById('pay-new-expiry').textContent=fmtDate(nd.toISOString());
+}
+function selectMonths(btn) {
+  curMonths=parseInt(btn.dataset.months);
+  document.querySelectorAll('.month-btn').forEach(function(b){
+    var sel=parseInt(b.dataset.months)===curMonths;
+    b.style.background=sel?'#0c9c5e':'#fff';
+    b.style.color=sel?'#fff':'#0c9c5e';
+  });
+  updatePayPreview();
+}
+function openPayment(id) {
+  curPayClient=clients.find(function(c){return c.id===id;});
+  if(!curPayClient) return;
+  curMonths=1;
+  document.getElementById('pay-client-name').textContent=curPayClient.name;
+  document.getElementById('pay-status-badge').innerHTML=badgeHtml(curPayClient.expiry);
+  document.getElementById('pay-current-expiry').textContent=
+    curPayClient.expiry?'Valid till: '+fmtDate(curPayClient.expiry):'No active plan';
+  document.getElementById('pay-note').value='';
+  document.querySelectorAll('.month-btn').forEach(function(b,i){
+    b.style.background=i===0?'#0c9c5e':'#fff';
+    b.style.color=i===0?'#fff':'#0c9c5e';
+  });
+  updatePayPreview(); openModal('modal-pay');
+}
+function confirmPayment() {
+  if(!curPayClient) return;
+  var p=PLANS[curPayClient.plan]||PLANS.basic;
+  var base=curPayClient.expiry&&new Date(curPayClient.expiry)>new Date()
+    ?new Date(curPayClient.expiry):new Date();
+  var nd=new Date(base); nd.setMonth(nd.getMonth()+curMonths);
+  var payment={date:new Date().toISOString(),months:curMonths,
+    amount:p.price*curMonths,note:document.getElementById('pay-note').value.trim(),
+    newExpiry:nd.toISOString()};
+  curPayClient.expiry=nd.toISOString();
+  curPayClient.payments=(curPayClient.payments||[]).concat([payment]);
+  saveAll(); renderAll(); closeModal('modal-pay');
+  showToast('✅ Payment recorded! Expiry: '+fmtDate(nd.toISOString()));
+}
+
+function showHistory(id) {
+  var c=clients.find(function(x){return x.id===id;});
+  if(!c) return;
+  var h=(c.payments||[]).slice().reverse().map(function(p){
+    return fmtDate(p.date)+' — ₹'+p.amount.toLocaleString('en-IN')
+      +' ('+p.months+' mo)'+(p.note?' ['+p.note+']':'');
+  }).join('\n')||'Koi payment history nahi';
+  alert('Payment History — '+c.name+'\n\n'+h);
+}
+function deleteClient(id,name) {
+  if(!confirm("'"+name+"' ko delete karo?")) return;
+  clients=clients.filter(function(c){return c.id!==id;});
+  saveAll(); renderAll(); showToast('Deleted: '+name);
+}
+</script>
+</body>
+</html>
