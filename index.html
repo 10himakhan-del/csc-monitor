@@ -430,36 +430,18 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 
   <!-- CTA -->
   <div class="cta-section">
-    <button class="tg-btn" id="tg-contact-btn" onclick="openTelegram()">
+    <button class="tg-btn" onclick="window.open('https://t.me/munnadhotarchor','_blank')">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.325.889z"/></svg>
       Telegram pe Contact Karo
     </button>
     <div class="tg-sub">
       Plan lene ke liye ya koi bhi sawaal ke liye<br/>
-      <strong style="color:#229ED9;" id="tg-id-display">@munnadhotarchor</strong> pe message karo
+      <strong style="color:#229ED9;">@munnadhotarchor</strong> pe message karo
     </div>
   </div>
 </div>
 
-<!-- ===== ACCESS DENIED SCREEN ===== -->
-<div id="denied-screen" style="display:none;position:fixed;inset:0;z-index:9999;
-  background:linear-gradient(160deg,#0a1810 0%,#1a0808 50%,#0a1810 100%);
-  flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;">
-  <div style="font-size:64px;margin-bottom:16px;" id="denied-icon">🚫</div>
-  <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:8px;" id="denied-title">Access Denied</div>
-  <div style="font-size:14px;color:#94a3b8;line-height:1.6;margin-bottom:28px;max-width:300px;" id="denied-msg">
-    Aapka account suspended hai.
-  </div>
-  <button id="denied-tg-btn" onclick="openTelegram()"
-    style="background:linear-gradient(135deg,#229ED9,#1a7db5);color:#fff;border:none;
-    border-radius:14px;padding:14px 24px;font-size:15px;font-weight:800;cursor:pointer;
-    font-family:inherit;display:flex;align-items:center;gap:10px;margin:0 auto 16px;">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.325.889z"/></svg>
-    Admin se Contact Karo
-  </button>
-  <div style="font-size:12px;color:#64748b;" id="denied-tg-id">@munnadhotarchor</div>
-  <div style="margin-top:24px;font-size:12px;color:#374151;" id="denied-countdown"></div>
-</div>
+<div id="setup-screen">
   <div class="sc">
     <div class="logo">
       <div style="font-size:50px">&#128225;</div>
@@ -805,41 +787,6 @@ function saveProfile() {
    User only sees password field - everything else is embedded in the link. */
 var QC_PARAMS = null; /* set if URL params were found */
 
-function openTelegram() {
-  var tg = (QC_PARAMS && QC_PARAMS.tg) ? QC_PARAMS.tg : 'munnadhotarchor';
-  tg = tg.replace(/^@/,'');
-  window.open('https://t.me/' + tg, '_blank');
-}
-
-function showDenied(icon, title, msg) {
-  /* Show Access Denied screen for 3 seconds then redirect to plans page */
-  var tg = (QC_PARAMS && QC_PARAMS.tg) ? QC_PARAMS.tg : 'munnadhotarchor';
-  tg = '@' + tg.replace(/^@/,'');
-  document.getElementById('denied-icon').textContent = icon;
-  document.getElementById('denied-title').textContent = title;
-  document.getElementById('denied-msg').textContent = msg;
-  document.getElementById('denied-tg-id').textContent = tg;
-  document.getElementById('setup-screen').style.display = 'none';
-  document.getElementById('denied-screen').style.display = 'flex';
-  /* Countdown then redirect to plans */
-  var secs = 3;
-  var cdEl = document.getElementById('denied-countdown');
-  cdEl.textContent = 'Plans page pe redirect ho raha hai ' + secs + ' second mein...';
-  var timer = setInterval(function() {
-    secs--;
-    if (secs <= 0) {
-      clearInterval(timer);
-      document.getElementById('denied-screen').style.display = 'none';
-      document.getElementById('plans-screen').style.display = 'block';
-      /* Update plans page Telegram ID */
-      var tgDisp = document.getElementById('tg-id-display');
-      if (tgDisp) tgDisp.textContent = tg;
-    } else {
-      cdEl.textContent = 'Plans page pe redirect ho raha hai ' + secs + ' second mein...';
-    }
-  }, 1000);
-}
-
 /* ===== ENCRYPTION HELPERS =====
    AES-GCM via browser's built-in crypto.subtle.
    Key is derived from a hardcoded passphrase using PBKDF2.
@@ -858,7 +805,7 @@ async function getKey(pass) {
 
 async function encryptData(obj) {
   /* Short keys to keep URL small */
-  var payload = JSON.stringify({ u: obj.furl, k: obj.key, n: obj.node, p: obj.pid||'', t: obj.tg||'' });
+  var payload = JSON.stringify({ u: obj.furl, k: obj.key, n: obj.node, p: obj.pid||'' });
   var iv = crypto.getRandomValues(new Uint8Array(12));
   var key = await getKey(CSC_PASS);
   var enc = new TextEncoder();
@@ -881,7 +828,7 @@ async function decryptData(b64) {
   var key = await getKey(CSC_PASS);
   var dec = await crypto.subtle.decrypt({ name:'AES-GCM', iv:iv }, key, ct);
   var obj = JSON.parse(new TextDecoder().decode(dec));
-  return { furl: obj.u, key: obj.k||'', node: obj.n||'csc6', pid: obj.p||'', tg: obj.t||'munnadhotarchor' };
+  return { furl: obj.u, key: obj.k||'', node: obj.n||'csc6', pid: obj.p||'' };
 }
 
 async function readUrlParams() {
@@ -891,13 +838,7 @@ async function readUrlParams() {
       /* Encrypted hash link — decrypt and show password screen */
       try {
         var decoded = await decryptData(hash);
-        QC_PARAMS = { furl: decoded.furl.replace(/\/+$/,''), key: decoded.key, node: decoded.node, pid: decoded.pid, tg: decoded.tg };
-        /* Update Telegram ID in plans page (in case user goes back) */
-        var tgId = '@' + (decoded.tg || 'munnadhotarchor');
-        var tgDisp = document.getElementById('tg-id-display');
-        if (tgDisp) tgDisp.textContent = tgId;
-        var deniedTg = document.getElementById('denied-tg-id');
-        if (deniedTg) deniedTg.textContent = tgId;
+        QC_PARAMS = { furl: decoded.furl.replace(/\/+$/,''), key: decoded.key, node: decoded.node, pid: decoded.pid };
         document.getElementById('plans-screen').style.display = 'none';
         document.getElementById('setup-screen').style.display = 'flex';
         document.getElementById('qc-section').style.display = 'block';
@@ -958,11 +899,15 @@ function doQuickConnect() {
             if (suspended === true || suspended === 'true') {
               blocked = true;
               btn.disabled = false; btn.textContent = '⚡ Connect';
-              showDenied(
-                '🚫',
-                'Account Suspended',
-                'Aapka account suspend kar diya gaya hai. Admin se contact karein.'
-              );
+              errEl.style.display = 'block';
+              errEl.style.background = '#fef2f2';
+              errEl.style.border = '1.5px solid #fecaca';
+              errEl.style.borderRadius = '10px';
+              errEl.style.padding = '12px';
+              errEl.style.color = '#dc2626';
+              errEl.innerHTML = '🚫 <b>Account Suspended Hai!</b><br>'
+                + 'Aapka account admin dwara suspend kar diya gaya hai.<br>'
+                + 'Iske liye admin se sampark karein.';
               return;
             }
             /* Not suspended — check expiry */
@@ -975,11 +920,15 @@ function doQuickConnect() {
                   if (daysLeft < 0) {
                     blocked = true;
                     btn.disabled = false; btn.textContent = '⚡ Connect';
-                    showDenied(
-                      '❌',
-                      'Plan Expire Ho Gaya',
-                      'Expiry: ' + exp.toLocaleDateString('en-IN') + '\nPlan renew karne ke liye admin se contact karein.'
-                    );
+                    errEl.style.display = 'block';
+                    errEl.style.background = '#fef2f2';
+                    errEl.style.border = '1.5px solid #fecaca';
+                    errEl.style.borderRadius = '10px';
+                    errEl.style.padding = '12px';
+                    errEl.style.color = '#dc2626';
+                    errEl.innerHTML = '❌ <b>Plan Expire Ho Gaya!</b><br>'
+                      + 'Expiry: ' + exp.toLocaleDateString('en-IN') + '<br>'
+                      + 'Dashboard use karne ke liye payment karein aur admin se plan renew karaein.';
                     return;
                   }
                   if (daysLeft <= 5) {
