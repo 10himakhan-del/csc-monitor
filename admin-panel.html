@@ -314,20 +314,38 @@ async function getKey(pass) {
   var enc = new TextEncoder();
   var keyMat = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt: enc.encode('cscSalt99'), iterations: 100000, hash:'SHA-256' },
+    { name:'PBKDF2', salt: enc.encode('cscSalt99'), iterations: 10000, hash:'SHA-256' },
     keyMat, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
   );
 }
-async function encryptLink(c) {
-  var tgId = localStorage.getItem('csc_tg_id') || 'munnadhotarchor';
-  tgId = tgId.replace(/^@/,''); /* remove @ if present */
-  var payload = JSON.stringify({ u: c.fbUrl, k: c.apiKey||'', n: c.node||'csc6', p: c.pid||'', t: tgId });
+async function encryptLink(c, isAdmin) {
+  var tgId = (localStorage.getItem('csc_tg_id') || 'munnadhotarchor').replace(/^@/,'');
+  var payload = { u: c.fbUrl, k: c.apiKey||'', n: c.node||'csc6', p: c.pid||'', t: tgId };
+  if (isAdmin) payload.a = 1;
   var iv = crypto.getRandomValues(new Uint8Array(12));
   var key = await getKey(CSC_PASS);
-  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, new TextEncoder().encode(payload));
+  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
   var combined = new Uint8Array(iv.length + ct.byteLength);
   combined.set(iv, 0); combined.set(new Uint8Array(ct), iv.length);
   return btoa(String.fromCharCode(...combined)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function copyLinkForClient(clientId) {
+  var c = clients.find(function(x){ return x.id===clientId; });
+  if (!c) return;
+  try {
+    var enc = await encryptLink(c, false);
+    if (navigator.clipboard) navigator.clipboard.writeText(BASE_URL+'#'+enc).catch(function(){});
+    showToast('📋 Client link copied!');
+  } catch(e) { showToast('Error: '+e.message); }
+}
+async function copyAdminLink(clientId) {
+  var c = clients.find(function(x){ return x.id===clientId; });
+  if (!c) return;
+  try {
+    var enc = await encryptLink(c, true);
+    if (navigator.clipboard) navigator.clipboard.writeText(BASE_URL+'#'+enc).catch(function(){});
+    showToast('🔓 Admin bypass link copied!');
+  } catch(e) { showToast('Error: '+e.message); }
 }
 
 /* ===== REST OF APP ===== */
@@ -368,16 +386,6 @@ function planBadge(planId) {
   var p = PLANS[planId]||PLANS.basic;
   return '<span class="plan-pill" style="background:'+p.color+'18;color:'+p.color+';">'
     +p.label+' · ₹'+p.price.toLocaleString('en-IN')+'/mo</span>';
-}
-async function copyLinkForClient(clientId) {
-  var c = clients.find(function(x){ return x.id===clientId; });
-  if (!c) return;
-  try {
-    var enc = await encryptLink(c);
-    var link = BASE_URL + '#' + enc;
-    if (navigator.clipboard) navigator.clipboard.writeText(link).catch(function(){});
-    showToast('📋 Encrypted link copied!');
-  } catch(e) { showToast('Error: ' + e.message); }
 }
 function showToast(msg) {
   var t=document.getElementById('toast');
@@ -431,13 +439,51 @@ function renderList() {
   var html='';
   filtered.forEach(function(c){
     var p=PLANS[c.plan]||PLANS.basic;
-    var expired=daysLeft(c.expiry)!==null&&daysLeft(c.expiry)<0;
-    html+='<div class="client-card" style="border-left:4px solid '+p.color+';'
-      +(expired?'box-shadow:0 0 0 2px #fecaca;':'')+'">'
-    var p=PLANS[c.plan]||PLANS.basic;
-    var expired=daysLeft(c.expiry)!==null&&daysLeft(c.expiry)<0;
-    html+='<div class="client-card" style="border-left:4px solid '+p.color+';'
-      +(expired?'box-shadow:0 0 0 2px #fecaca;':'')+'">'       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'       +'<div style="font-weight:800;font-size:15px;color:'+(c.suspended?'#94a3b8':'#1e293b')+';">'+c.name+'</div>'       +(c.suspended?'<span class="badge" style="background:#f1f5f9;color:#64748b;">🚫 Suspended</span>':badgeHtml(c.expiry))+'</div>'       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'       +planBadge(c.plan)       +'<span class="plan-pill" style="background:#f8fafc;color:#64748b;">Node: '+c.node+'</span>'       +'</div>'       +'<div style="font-size:12px;color:#64748b;margin-bottom:4px;">'       +(c.suspended?'<span style="color:#dc2626;font-weight:700;">🚫 Suspended — connect nahi ho payega</span>'         :(c.expiry?(expired?'❌ Expired: ':'📅 Valid till: ')+fmtDate(c.expiry):'📅 Plan set nahi hai'))+'</div>'       +'<div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Added: '+fmtDate(c.createdAt)+'</div>'       +'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">'       +'<div>'       +'<div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">🔑 Firebase Password</div>'       +'<div id="pw-'+c.id+'" style="font-size:16px;font-weight:800;color:#0c9c5e;letter-spacing:2px;font-family:monospace;">Loading...</div>'       +'</div>'       +'<button class="btn btn-outline" style="font-size:11px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openChangePw(\''+c.id+'\')">✏️ Change</button>'       +'</div>'       +'<div class="client-actions">'       +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="copyLinkForClient(\''+c.id+'\')">🔗 Link</button>'       +'<button class="btn '+(expired?'btn-red':'btn-green')+'" style="font-size:12px;padding:7px 12px;" onclick="openPayment(\''+c.id+'\')">💳 '+(expired?'Renew':'Payment')+'</button>'       +'<button class="btn '+(c.suspended?'btn-green':'btn-outline')+'" style="font-size:12px;padding:7px 12px;'+(c.suspended?'':'border-color:#f59e0b;color:#d97706;')+'" onclick="toggleSuspend(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')">'+(c.suspended?'✅ Unsuspend':'🚫 Suspend')+'</button>'       +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="showHistory(\''+c.id+'\')">📋 History</button>'       +'<button class="btn btn-red" style="font-size:12px;padding:7px 12px;" onclick="deleteClient(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')" >🗑️</button>'       +'</div></div>';
+    var d=daysLeft(c.expiry);
+    var expired=d!==null&&d<0;
+    var name=c.name.replace(/'/g,"\'");
+    html+=
+      '<div class="client-card" style="border-left:4px solid '+p.color+';'+
+        (expired?'box-shadow:0 0 0 2px #fecaca;':'')+'">'+
+      // Header: name + badge
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
+        '<div style="font-weight:800;font-size:15px;color:'+(c.suspended?'#94a3b8':'#1e293b')+';">'+c.name+'</div>'+
+        (c.suspended
+          ?'<span class="badge" style="background:#f1f5f9;color:#64748b;">🚫 Suspended</span>'
+          :badgeHtml(c.expiry))+
+      '</div>'+
+      // Plan + node
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'+
+        planBadge(c.plan)+
+        '<span class="plan-pill" style="background:#f8fafc;color:#64748b;">Node: '+c.node+'</span>'+
+      '</div>'+
+      // Status line
+      '<div style="font-size:12px;color:#64748b;margin-bottom:4px;">'+
+        (c.suspended
+          ?'<span style="color:#dc2626;font-weight:700;">🚫 Suspended</span>'
+          :(c.expiry?(expired?'❌ Expired: ':'📅 Valid till: ')+fmtDate(c.expiry):'📅 Plan set nahi hai'))+
+      '</div>'+
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Added: '+fmtDate(c.createdAt)+'</div>'+
+      // Password box
+      '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
+        '<div>'+
+          '<div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">🔑 Firebase Password</div>'+
+          '<div id="pw-'+c.id+'" style="font-size:16px;font-weight:800;color:#0c9c5e;letter-spacing:2px;font-family:monospace;">Loading...</div>'+
+        '</div>'+
+        '<button class="btn btn-outline" style="font-size:11px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openChangePw(\''+c.id+'\')">✏️ Change</button>'+
+      '</div>'+
+      // Action buttons
+      '<div class="client-actions">'+
+        '<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="copyLinkForClient(\''+c.id+'\')">🔗 Client Link</button>'+
+        '<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;border-color:#8b5cf6;color:#8b5cf6;" onclick="copyAdminLink(\''+c.id+'\')">🔓 Admin Link</button>'+
+        '<button class="btn '+(expired?'btn-red':'btn-green')+'" style="font-size:12px;padding:7px 12px;" onclick="openPayment(\''+c.id+'\')">💳 '+(expired?'Renew':'Payment')+'</button>'+
+        '<button class="btn '+(c.suspended?'btn-green':'btn-outline')+'" style="font-size:12px;padding:7px 12px;'+(c.suspended?'':'border-color:#f59e0b;color:#d97706;')+'" onclick="toggleSuspend(\''+c.id+'\',\''+name+'\')">'+
+          (c.suspended?'✅ Unsuspend':'🚫 Suspend')+
+        '</button>'+
+        '<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="showHistory(\''+c.id+'\')">📋 History</button>'+
+        '<button class="btn btn-red" style="font-size:12px;padding:7px 12px;" onclick="deleteClient(\''+c.id+'\',\''+name+'\')">🗑️</button>'+
+      '</div>'+
+      '</div>';
   });
   list.innerHTML=html;
   /* Fetch Firebase passwords for all visible clients */
