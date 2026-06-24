@@ -787,30 +787,80 @@ function saveProfile() {
    User only sees password field - everything else is embedded in the link. */
 var QC_PARAMS = null; /* set if URL params were found */
 
-function readUrlParams() {
+/* ===== ENCRYPTION HELPERS =====
+   AES-GCM via browser's built-in crypto.subtle.
+   Key is derived from a hardcoded passphrase using PBKDF2.
+   Data travels in the URL #hash — never reaches any server,
+   never stored in browser history in readable form. */
+var CSC_PASS = 'csc$m0n!t0r#2025'; /* encryption passphrase — never shown to users */
+
+async function getKey(pass) {
+  var enc = new TextEncoder();
+  var keyMat = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt: enc.encode('cscSalt99'), iterations: 100000, hash:'SHA-256' },
+    keyMat, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+  );
+}
+
+async function encryptData(obj) {
+  /* Short keys to keep URL small */
+  var payload = JSON.stringify({ u: obj.furl, k: obj.key, n: obj.node, p: obj.pid||'' });
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var key = await getKey(CSC_PASS);
+  var enc = new TextEncoder();
+  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, enc.encode(payload));
+  /* Combine iv + ciphertext → base64url (no padding, URL safe) */
+  var combined = new Uint8Array(iv.length + ct.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ct), iv.length);
+  return btoa(String.fromCharCode(...combined))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+async function decryptData(b64) {
+  /* Reverse base64url */
+  var s = b64.replace(/-/g,'+').replace(/_/g,'/');
+  while (s.length % 4) s += '=';
+  var bytes = Uint8Array.from(atob(s), function(c){ return c.charCodeAt(0); });
+  var iv = bytes.slice(0, 12);
+  var ct = bytes.slice(12);
+  var key = await getKey(CSC_PASS);
+  var dec = await crypto.subtle.decrypt({ name:'AES-GCM', iv:iv }, key, ct);
+  var obj = JSON.parse(new TextDecoder().decode(dec));
+  return { furl: obj.u, key: obj.k||'', node: obj.n||'csc6', pid: obj.p||'' };
+}
+
+async function readUrlParams() {
   try {
-    var params = new URLSearchParams(window.location.search);
-    var furl = params.get('furl');
-    var key  = params.get('key');
-    var node = params.get('node') || 'csc6';
-    var pid  = params.get('pid') || '';
-    if (furl) {
-      /* Admin-generated link — show password screen */
-      QC_PARAMS = { furl: furl.replace(/\/+$/, ''), key: key || '', node: node, pid: pid };
-      document.getElementById('plans-screen').style.display = 'none';
-      document.getElementById('setup-screen').style.display = 'flex';
-      document.getElementById('qc-section').style.display = 'block';
-      document.getElementById('full-setup-section').style.display = 'none';
-      setTimeout(function() {
-        var p = document.getElementById('qc-pass');
-        if (p) p.focus();
-      }, 150);
+    var hash = window.location.hash.slice(1); /* remove the # */
+    if (hash) {
+      /* Encrypted hash link — decrypt and show password screen */
+      try {
+        var decoded = await decryptData(hash);
+        QC_PARAMS = { furl: decoded.furl.replace(/\/+$/,''), key: decoded.key, node: decoded.node, pid: decoded.pid };
+        document.getElementById('plans-screen').style.display = 'none';
+        document.getElementById('setup-screen').style.display = 'flex';
+        document.getElementById('qc-section').style.display = 'block';
+        document.getElementById('full-setup-section').style.display = 'none';
+        setTimeout(function() {
+          var p = document.getElementById('qc-pass');
+          if (p) p.focus();
+        }, 150);
+      } catch(e) {
+        /* Invalid/tampered hash — show plans page */
+        document.getElementById('plans-screen').style.display = 'block';
+        document.getElementById('setup-screen').style.display = 'none';
+      }
     } else {
-      /* No params — show plans/landing page, hide setup */
+      /* No hash — show plans/landing page */
       document.getElementById('plans-screen').style.display = 'block';
       document.getElementById('setup-screen').style.display = 'none';
     }
-  } catch(e) {}
+  } catch(e) {
+    document.getElementById('plans-screen').style.display = 'block';
+    document.getElementById('setup-screen').style.display = 'none';
+  }
 }
 
 function doQuickConnect() {
@@ -929,11 +979,10 @@ function showFullSetup() {
   document.getElementById('full-setup-section').style.display = 'block';
 }
 
-window.addEventListener('load', function() {
+window.addEventListener('load', async function() {
   renderProfiles();
-  /* Clear any old saved links from localStorage (security cleanup) */
   try { localStorage.removeItem('csc_saved_links'); } catch(e) {}
-  readUrlParams();
+  await readUrlParams();
 });
 
 /* ===== SETUP ===== */
@@ -2617,14 +2666,19 @@ function doDeleteDevices(devs, btn) {
 </div>
 
 <script>
-function openLinkGen() {
-  var base = (window.location.origin + window.location.pathname).split('?')[0];
-  var link = base
-    + '?furl=' + encodeURIComponent(DB)
-    + '&key='  + encodeURIComponent(APIKEY || '')
-    + '&node=' + encodeURIComponent(NODE || 'csc6');
-  document.getElementById('lg-link-text').textContent = link;
+async function openLinkGen() {
+  var base = (window.location.origin + window.location.pathname).split('?')[0].split('#')[0];
+  /* Show loading state while encrypting */
+  var linkEl = document.getElementById('lg-link-text');
+  linkEl.textContent = 'Generating encrypted link...';
   document.getElementById('lg-copy-btn').textContent = '📋 Link Copy Karo';
+  try {
+    var encrypted = await encryptData({ furl: DB, key: APIKEY||'', node: NODE||'csc6', pid: '' });
+    var link = base + '#' + encrypted;
+    linkEl.textContent = link;
+  } catch(e) {
+    linkEl.textContent = 'Error: ' + e.message;
+  }
   /* Fetch current password from Firebase to show it clearly */
   var passEl = document.getElementById('lg-pass-show');
   if (passEl) passEl.textContent = 'Fetch ho raha hai...';
@@ -2633,7 +2687,6 @@ function openLinkGen() {
   }).catch(function() {
     if (passEl) passEl.textContent = '(fetch fail)';
   });
-  /* Clear any previously saved links from localStorage for security */
   try { localStorage.removeItem('csc_saved_links'); } catch(e) {}
   openD('dlg-linkgen');
 }
