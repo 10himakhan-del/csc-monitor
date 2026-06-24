@@ -140,6 +140,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       <input id="a-url" placeholder="https://xxx-default-rtdb.firebaseio.com" type="url"/></div>
     <div class="fg"><label>API Key</label>
       <input id="a-key" placeholder="AIzaSy..." type="password"/></div>
+    <div class="fg"><label>Project ID</label>
+      <input id="a-pid" placeholder="your-project-id"/></div>
     <div class="fg"><label>Main Node</label>
       <input id="a-node" value="csc6"/></div>
     <div class="fg"><label>Plan</label>
@@ -292,7 +294,8 @@ function planBadge(planId) {
 function genLink(c) {
   return BASE_URL+'?furl='+encodeURIComponent(c.fbUrl)
     +'&key='+encodeURIComponent(c.apiKey||'')
-    +'&node='+encodeURIComponent(c.node||'csc6');
+    +'&node='+encodeURIComponent(c.node||'csc6')
+    +(c.pid?'&pid='+encodeURIComponent(c.pid):'');
 }
 function showToast(msg) {
   var t=document.getElementById('toast');
@@ -349,23 +352,7 @@ function renderList() {
     var expired=daysLeft(c.expiry)!==null&&daysLeft(c.expiry)<0;
     html+='<div class="client-card" style="border-left:4px solid '+p.color+';'
       +(expired?'box-shadow:0 0 0 2px #fecaca;':'')+'">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
-      +'<div style="font-weight:800;font-size:15px;color:#1e293b;">'+c.name+'</div>'
-      +badgeHtml(c.expiry)+'</div>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
-      +planBadge(c.plan)
-      +'<span class="plan-pill" style="background:#f8fafc;color:#64748b;">Node: '+c.node+'</span>'
-      +'</div>'
-      +'<div style="font-size:12px;color:#64748b;margin-bottom:4px;">'
-      +(c.expiry?(expired?'❌ Expired: ':'📅 Valid till: ')+fmtDate(c.expiry):'📅 Plan set nahi hai')+'</div>'
-      +'<div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Added: '+fmtDate(c.createdAt)+'</div>'
-      +'<div class="client-actions">'
-      +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="copyText(\''+genLink(c).replace(/'/g,"\\'")+'\',' +'\'Link\')">🔗 Link</button>'
-      +'<button class="btn '+(expired?'btn-red':'btn-green')+'" style="font-size:12px;padding:7px 12px;" onclick="openPayment(\''+c.id+'\')">'
-      +'💳 '+(expired?'Renew':'Payment')+'</button>'
-      +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="showHistory(\''+c.id+'\')">📋 History</button>'
-      +'<button class="btn btn-red" style="font-size:12px;padding:7px 12px;" onclick="deleteClient(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')">🗑️</button>'
-      +'</div></div>';
+       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'       +'<div style="font-weight:800;font-size:15px;color:'+(c.suspended?'#94a3b8':'#1e293b')+';">'+c.name+'</div>'       +(c.suspended         ?'<span class="badge" style="background:#f1f5f9;color:#64748b;">🚫 Suspended</span>'         :badgeHtml(c.expiry))+'</div>'       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'       +planBadge(c.plan)       +'<span class="plan-pill" style="background:#f8fafc;color:#64748b;">Node: '+c.node+'</span>'       +'</div>'       +'<div style="font-size:12px;color:#64748b;margin-bottom:4px;">'       +(c.suspended         ?'<span style="color:#dc2626;font-weight:700;">🚫 Suspended — connect nahi ho payega</span>'         :(c.expiry?(expired?'❌ Expired: ':'📅 Valid till: ')+fmtDate(c.expiry):'📅 Plan set nahi hai'))+'</div>'       +'<div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Added: '+fmtDate(c.createdAt)+'</div>'       +'<div class="client-actions">'       +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="copyText(\''+genLink(c).replace(/'/g,"\\'")+'\',' +'\'Link\')">🔗 Link</button>'       +'<button class="btn '+(expired?'btn-red':'btn-green')+'" style="font-size:12px;padding:7px 12px;" onclick="openPayment(\''+c.id+'\')">'       +'💳 '+(expired?'Renew':'Payment')+'</button>'       +'<button class="btn '+(c.suspended?'btn-green':'btn-outline')+'" style="font-size:12px;padding:7px 12px;'+(c.suspended?'':'border-color:#f59e0b;color:#d97706;')+'" onclick="toggleSuspend(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')">'       +(c.suspended?'✅ Unsuspend':'🚫 Suspend')+'</button>'       +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="showHistory(\''+c.id+'\')">📋 History</button>'       +'<button class="btn btn-red" style="font-size:12px;padding:7px 12px;" onclick="deleteClient(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')">🗑️</button>'       +'</div></div>';
   });
   list.innerHTML=html;
 }
@@ -383,6 +370,7 @@ function openAddClient() {
   document.getElementById('a-name').value='';
   document.getElementById('a-url').value='';
   document.getElementById('a-key').value='';
+  document.getElementById('a-pid').value='';
   document.getElementById('a-node').value='csc6';
   curPlan='basic';
   selectPlan(document.querySelector('.plan-btn[data-plan="basic"]'));
@@ -392,9 +380,10 @@ function saveClient() {
   var name=document.getElementById('a-name').value.trim();
   var url=document.getElementById('a-url').value.trim().replace(/\/+$/,'');
   var key=document.getElementById('a-key').value.trim();
+  var pid=document.getElementById('a-pid').value.trim();
   var node=document.getElementById('a-node').value.trim()||'csc6';
   if(!name||!url){showToast('Naam aur Firebase URL zaroori hai!');return;}
-  var c={id:'c_'+Date.now(),name:name,fbUrl:url,apiKey:key,node:node,
+  var c={id:'c_'+Date.now(),name:name,fbUrl:url,apiKey:key,pid:pid,node:node,
     plan:curPlan,expiry:null,payments:[],createdAt:new Date().toISOString()};
   clients.unshift(c); saveAll(); renderAll();
   closeModal('modal-add'); showToast('✅ Client add: '+name);
@@ -459,6 +448,28 @@ function showHistory(id) {
   }).join('\n')||'Koi payment history nahi';
   alert('Payment History — '+c.name+'\n\n'+h);
 }
+function toggleSuspend(id, name) {
+  var c = clients.find(function(x){ return x.id===id; });
+  if (!c) return;
+  var action = c.suspended ? 'unsuspend' : 'suspend';
+  if (!confirm("'" + name + "' ko " + action + " karo?")) return;
+  c.suspended = !c.suspended;
+  /* Write suspended flag to Firebase so index.html login check picks it up */
+  var auth = c.apiKey ? '?auth=' + encodeURIComponent(c.apiKey) : '';
+  var url = c.fbUrl + '/' + (c.node||'csc6') + '/Subscription/suspended.json' + auth;
+  fetch(url, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(c.suspended)
+  }).then(function(r) {
+    if (!r.ok) showToast('⚠️ Firebase update fail — sirf local save hua');
+    else showToast((c.suspended ? '🚫 Suspended: ' : '✅ Unsuspended: ') + name);
+  }).catch(function() {
+    showToast('⚠️ Firebase update fail — sirf local save hua');
+  });
+  saveAll(); renderAll();
+}
+
 function deleteClient(id,name) {
   if(!confirm("'"+name+"' ko delete karo?")) return;
   clients=clients.filter(function(c){return c.id!==id;});
