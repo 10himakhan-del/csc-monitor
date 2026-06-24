@@ -105,7 +105,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   </div>
   <div style="display:flex;gap:8px;">
     <button class="btn btn-green" onclick="openAddClient()" style="font-size:14px;padding:10px 18px;border-radius:12px;">+ Add Client</button>
-    <button class="btn btn-outline" onclick="openSettings()" style="font-size:14px;padding:10px 14px;border-radius:12px;">⚙️</button>
     <button class="btn btn-gray" onclick="doLogout()" style="font-size:13px;padding:10px 14px;">Logout</button>
   </div>
 </div>
@@ -199,61 +198,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   </div>
 </div>
 
-<!-- ===== SETTINGS MODAL ===== -->
-<div class="overlay" id="modal-settings">
-  <div class="modal">
-    <div style="font-weight:800;font-size:16px;color:#0c9c5e;margin-bottom:16px;">⚙️ Settings</div>
-
-    <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;
-      padding:12px 14px;margin-bottom:16px;font-size:12px;color:#166534;line-height:1.5;">
-      Yeh settings <b>sirf is device ke browser mein</b> save hoti hain.<br>
-      Jab bhi link generate karo, current settings us link mein automatically embed ho jaati hain.
-    </div>
-
-    <div class="fg">
-      <label>Telegram ID (without @)</label>
-      <input id="s-tg-id" placeholder="e.g. munnadhotarchor"
-        style="font-size:16px;font-family:monospace;letter-spacing:.5px;"/>
-      <div style="font-size:11px;color:#64748b;margin-top:4px;">
-        Yeh ID suspended/expired users ko contact ke liye dikhegi
-      </div>
-    </div>
-
-    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;
-      padding:10px 12px;margin-bottom:14px;font-size:12px;color:#92400e;">
-      ⚠️ Settings save karne ke baad <b>nayi links generate karo</b> — purani links mein purani ID rahegi.
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <button class="btn btn-gray" onclick="closeModal('modal-settings')">Cancel</button>
-      <button class="btn btn-green" onclick="saveSettings()">💾 Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== CHANGE PASSWORD MODAL ===== -->
-<div class="overlay" id="modal-cpw">
-  <div class="modal">
-    <div style="font-weight:800;font-size:16px;color:#0c9c5e;margin-bottom:4px;">🔑 Change Firebase Password</div>
-    <div style="font-size:13px;color:#64748b;margin-bottom:14px;" id="cpw-client-name"></div>
-    <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:10px 14px;margin-bottom:14px;">
-      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Current Password</div>
-      <div id="cpw-current" style="font-size:18px;font-weight:800;color:#0c9c5e;letter-spacing:2px;font-family:monospace;">---</div>
-    </div>
-    <div class="fg">
-      <label>New Password</label>
-      <input id="cpw-input" type="text" placeholder="Naya password daalo"
-        onkeydown="if(event.key==='Enter')doChangePw()"/>
-    </div>
-    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:9px 12px;
-      margin-bottom:12px;font-size:12px;color:#dc2626;display:none;" id="cpw-err"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <button class="btn btn-gray" onclick="closeModal('modal-cpw')">Cancel</button>
-      <button class="btn btn-green" id="cpw-btn" onclick="doChangePw()">💾 Save Password</button>
-    </div>
-  </div>
-</div>
-
 <script>
 /* ===================================================================
    SECURITY: Password stored as SHA-256 hash only.
@@ -314,38 +258,18 @@ async function getKey(pass) {
   var enc = new TextEncoder();
   var keyMat = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt: enc.encode('cscSalt99'), iterations: 10000, hash:'SHA-256' },
+    { name:'PBKDF2', salt: enc.encode('cscSalt99'), iterations: 100000, hash:'SHA-256' },
     keyMat, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
   );
 }
-async function encryptLink(c, isAdmin) {
-  var tgId = (localStorage.getItem('csc_tg_id') || 'munnadhotarchor').replace(/^@/,'');
-  var payload = { u: c.fbUrl, k: c.apiKey||'', n: c.node||'csc6', p: c.pid||'', t: tgId };
-  if (isAdmin) payload.a = 1;
+async function encryptLink(c) {
+  var payload = JSON.stringify({ u: c.fbUrl, k: c.apiKey||'', n: c.node||'csc6', p: c.pid||'' });
   var iv = crypto.getRandomValues(new Uint8Array(12));
   var key = await getKey(CSC_PASS);
-  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
+  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, new TextEncoder().encode(payload));
   var combined = new Uint8Array(iv.length + ct.byteLength);
   combined.set(iv, 0); combined.set(new Uint8Array(ct), iv.length);
   return btoa(String.fromCharCode(...combined)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-async function copyLinkForClient(clientId) {
-  var c = clients.find(function(x){ return x.id===clientId; });
-  if (!c) return;
-  try {
-    var enc = await encryptLink(c, false);
-    if (navigator.clipboard) navigator.clipboard.writeText(BASE_URL+'#'+enc).catch(function(){});
-    showToast('📋 Client link copied!');
-  } catch(e) { showToast('Error: '+e.message); }
-}
-async function copyAdminLink(clientId) {
-  var c = clients.find(function(x){ return x.id===clientId; });
-  if (!c) return;
-  try {
-    var enc = await encryptLink(c, true);
-    if (navigator.clipboard) navigator.clipboard.writeText(BASE_URL+'#'+enc).catch(function(){});
-    showToast('🔓 Admin bypass link copied!');
-  } catch(e) { showToast('Error: '+e.message); }
 }
 
 /* ===== REST OF APP ===== */
@@ -386,6 +310,16 @@ function planBadge(planId) {
   var p = PLANS[planId]||PLANS.basic;
   return '<span class="plan-pill" style="background:'+p.color+'18;color:'+p.color+';">'
     +p.label+' · ₹'+p.price.toLocaleString('en-IN')+'/mo</span>';
+}
+async function copyLinkForClient(clientId) {
+  var c = clients.find(function(x){ return x.id===clientId; });
+  if (!c) return;
+  try {
+    var enc = await encryptLink(c);
+    var link = BASE_URL + '#' + enc;
+    if (navigator.clipboard) navigator.clipboard.writeText(link).catch(function(){});
+    showToast('📋 Encrypted link copied!');
+  } catch(e) { showToast('Error: ' + e.message); }
 }
 function showToast(msg) {
   var t=document.getElementById('toast');
@@ -439,144 +373,16 @@ function renderList() {
   var html='';
   filtered.forEach(function(c){
     var p=PLANS[c.plan]||PLANS.basic;
-    var d=daysLeft(c.expiry);
-    var expired=d!==null&&d<0;
-    var name=c.name.replace(/'/g,"\'");
-    html+=
-      '<div class="client-card" style="border-left:4px solid '+p.color+';'+
-        (expired?'box-shadow:0 0 0 2px #fecaca;':'')+'">'+
-      // Header: name + badge
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
-        '<div style="font-weight:800;font-size:15px;color:'+(c.suspended?'#94a3b8':'#1e293b')+';">'+c.name+'</div>'+
-        (c.suspended
-          ?'<span class="badge" style="background:#f1f5f9;color:#64748b;">🚫 Suspended</span>'
-          :badgeHtml(c.expiry))+
-      '</div>'+
-      // Plan + node
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'+
-        planBadge(c.plan)+
-        '<span class="plan-pill" style="background:#f8fafc;color:#64748b;">Node: '+c.node+'</span>'+
-      '</div>'+
-      // Status line
-      '<div style="font-size:12px;color:#64748b;margin-bottom:4px;">'+
-        (c.suspended
-          ?'<span style="color:#dc2626;font-weight:700;">🚫 Suspended</span>'
-          :(c.expiry?(expired?'❌ Expired: ':'📅 Valid till: ')+fmtDate(c.expiry):'📅 Plan set nahi hai'))+
-      '</div>'+
-      '<div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Added: '+fmtDate(c.createdAt)+'</div>'+
-      // Password box
-      '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
-        '<div>'+
-          '<div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">🔑 Firebase Password</div>'+
-          '<div id="pw-'+c.id+'" style="font-size:16px;font-weight:800;color:#0c9c5e;letter-spacing:2px;font-family:monospace;">Loading...</div>'+
-        '</div>'+
-        '<button class="btn btn-outline" style="font-size:11px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openChangePw(\''+c.id+'\')">✏️ Change</button>'+
-      '</div>'+
-      // Action buttons
-      '<div class="client-actions">'+
-        '<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="copyLinkForClient(\''+c.id+'\')">🔗 Client Link</button>'+
-        '<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;border-color:#8b5cf6;color:#8b5cf6;" onclick="copyAdminLink(\''+c.id+'\')">🔓 Admin Link</button>'+
-        '<button class="btn '+(expired?'btn-red':'btn-green')+'" style="font-size:12px;padding:7px 12px;" onclick="openPayment(\''+c.id+'\')">💳 '+(expired?'Renew':'Payment')+'</button>'+
-        '<button class="btn '+(c.suspended?'btn-green':'btn-outline')+'" style="font-size:12px;padding:7px 12px;'+(c.suspended?'':'border-color:#f59e0b;color:#d97706;')+'" onclick="toggleSuspend(\''+c.id+'\',\''+name+'\')">'+
-          (c.suspended?'✅ Unsuspend':'🚫 Suspend')+
-        '</button>'+
-        '<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="showHistory(\''+c.id+'\')">📋 History</button>'+
-        '<button class="btn btn-red" style="font-size:12px;padding:7px 12px;" onclick="deleteClient(\''+c.id+'\',\''+name+'\')">🗑️</button>'+
-      '</div>'+
-      '</div>';
+    var expired=daysLeft(c.expiry)!==null&&daysLeft(c.expiry)<0;
+    html+='<div class="client-card" style="border-left:4px solid '+p.color+';'
+      +(expired?'box-shadow:0 0 0 2px #fecaca;':'')+'">'
+       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'       +'<div style="font-weight:800;font-size:15px;color:'+(c.suspended?'#94a3b8':'#1e293b')+';">'+c.name+'</div>'       +(c.suspended         ?'<span class="badge" style="background:#f1f5f9;color:#64748b;">🚫 Suspended</span>'         :badgeHtml(c.expiry))+'</div>'       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'       +planBadge(c.plan)       +'<span class="plan-pill" style="background:#f8fafc;color:#64748b;">Node: '+c.node+'</span>'       +'</div>'       +'<div style="font-size:12px;color:#64748b;margin-bottom:4px;">'       +(c.suspended         ?'<span style="color:#dc2626;font-weight:700;">🚫 Suspended — connect nahi ho payega</span>'         :(c.expiry?(expired?'❌ Expired: ':'📅 Valid till: ')+fmtDate(c.expiry):'📅 Plan set nahi hai'))+'</div>'       +'<div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Added: '+fmtDate(c.createdAt)+'</div>'       +'<div class="client-actions">'       +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="copyLinkForClient(\''+c.id+'\')" >🔗 Link</button>'       +'<button class="btn '+(expired?'btn-red':'btn-green')+'" style="font-size:12px;padding:7px 12px;" onclick="openPayment(\''+c.id+'\')">'       +'💳 '+(expired?'Renew':'Payment')+'</button>'       +'<button class="btn '+(c.suspended?'btn-green':'btn-outline')+'" style="font-size:12px;padding:7px 12px;'+(c.suspended?'':'border-color:#f59e0b;color:#d97706;')+'" onclick="toggleSuspend(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')">'       +(c.suspended?'✅ Unsuspend':'🚫 Suspend')+'</button>'       +'<button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="showHistory(\''+c.id+'\')">📋 History</button>'       +'<button class="btn btn-red" style="font-size:12px;padding:7px 12px;" onclick="deleteClient(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')">🗑️</button>'       +'</div></div>';
   });
   list.innerHTML=html;
-  /* Fetch Firebase passwords for all visible clients */
-  filtered.forEach(function(c) { fetchClientPassword(c.id); });
-}
-
-/* ===== SETTINGS ===== */
-function openSettings() {
-  var saved = localStorage.getItem('csc_tg_id') || 'munnadhotarchor';
-  document.getElementById('s-tg-id').value = saved.replace(/^@/,'');
-  openModal('modal-settings');
-}
-function saveSettings() {
-  var tg = document.getElementById('s-tg-id').value.trim().replace(/^@/,'');
-  if (!tg) { showToast('Telegram ID daalo!'); return; }
-  localStorage.setItem('csc_tg_id', tg);
-  closeModal('modal-settings');
-  showToast('✅ Settings saved! Ab nayi links generate karo.');
-}
-
-/* ===== FIREBASE PASSWORD FUNCTIONS ===== */
-function fetchClientPassword(clientId) {
-  var c = clients.find(function(x){ return x.id===clientId; });
-  if (!c) return;
-  var auth = c.apiKey ? '?auth=' + encodeURIComponent(c.apiKey) : '';
-  var url = c.fbUrl + '/' + (c.node||'csc6') + '/Admin_Password.json' + auth;
-  var el = document.getElementById('pw-' + clientId);
-  if (!el) return;
-  fetch(url).then(function(r){ return r.json(); }).then(function(v) {
-    if (!el) return;
-    if (v && v !== 'null') {
-      el.textContent = String(v);
-      el.style.color = '#0c9c5e';
-    } else {
-      el.textContent = 'Set nahi hai';
-      el.style.color = '#94a3b8';
-      el.style.fontSize = '12px';
-      el.style.letterSpacing = '0';
-    }
-  }).catch(function() {
-    if (el) { el.textContent = 'Fetch fail'; el.style.color = '#dc2626'; el.style.fontSize='12px'; }
-  });
-}
-
-var curPwClientId = null;
-function openChangePw(clientId) {
-  curPwClientId = clientId;
-  var c = clients.find(function(x){ return x.id===clientId; });
-  document.getElementById('cpw-client-name').textContent = c ? c.name : '';
-  document.getElementById('cpw-input').value = '';
-  document.getElementById('cpw-err').style.display = 'none';
-  document.getElementById('cpw-btn').textContent = '💾 Save Password';
-  document.getElementById('cpw-btn').disabled = false;
-  /* Show current password */
-  var curEl = document.getElementById('cpw-current');
-  var pwEl = document.getElementById('pw-' + clientId);
-  curEl.textContent = pwEl ? pwEl.textContent : '---';
-  openModal('modal-cpw');
-  setTimeout(function(){ document.getElementById('cpw-input').focus(); }, 200);
-}
-
-function doChangePw() {
-  var c = clients.find(function(x){ return x.id===curPwClientId; });
-  if (!c) return;
-  var newPass = document.getElementById('cpw-input').value.trim();
-  var errEl = document.getElementById('cpw-err');
-  var btn = document.getElementById('cpw-btn');
-  if (!newPass) { errEl.textContent='Password daalo!'; errEl.style.display='block'; return; }
-  btn.disabled = true; btn.textContent = 'Saving...';
-  errEl.style.display = 'none';
-  var auth = c.apiKey ? '?auth=' + encodeURIComponent(c.apiKey) : '';
-  var url = c.fbUrl + '/' + (c.node||'csc6') + '/Admin_Password.json' + auth;
-  fetch(url, {
-    method: 'PUT',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(newPass)
-  }).then(function(r) {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  }).then(function() {
-    showToast('✅ Password updated: ' + c.name);
-    closeModal('modal-cpw');
-    /* Refresh the password display in the card */
-    setTimeout(function() { fetchClientPassword(curPwClientId); }, 300);
-  }).catch(function(e) {
-    btn.disabled = false; btn.textContent = '💾 Save Password';
-    errEl.textContent = 'Error: ' + e.message; errEl.style.display='block';
-  });
 }
 
 function selectPlan(btn) {
   curPlan=btn.dataset.plan;
-
   document.querySelectorAll('.plan-btn').forEach(function(b){
     var bp=PLANS[b.dataset.plan];
     var sel=b.dataset.plan===curPlan;
