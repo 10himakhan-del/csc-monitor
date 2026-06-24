@@ -563,9 +563,43 @@ function doQuickConnect() {
         return;
       }
       if (String(storedPass) === pass) {
-        document.getElementById('setup-screen').style.display = 'none';
-        document.getElementById('app').style.display = 'flex';
-        startInfoSSE();
+        /* Password correct — now check subscription expiry */
+        fbGetRoot(NODE + '/Subscription/expiry')
+          .then(function(expiry) {
+            if (expiry) {
+              var now = new Date();
+              var exp = new Date(expiry);
+              var daysLeft = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+              if (daysLeft < 0) {
+                /* Expired — show payment required screen */
+                btn.disabled = false; btn.textContent = '⚡ Connect';
+                errEl.style.display = 'block';
+                errEl.style.background = '#fef2f2';
+                errEl.style.border = '1.5px solid #fecaca';
+                errEl.style.borderRadius = '10px';
+                errEl.style.padding = '12px';
+                errEl.style.color = '#dc2626';
+                errEl.innerHTML = '❌ <b>Plan Expire Ho Gaya!</b><br>'
+                  + 'Expiry: ' + exp.toLocaleDateString('en-IN') + '<br>'
+                  + 'Dashboard use karne ke liye payment karein aur admin se plan renew karaein.';
+                return;
+              }
+              /* Expiring soon — warn but allow */
+              if (daysLeft <= 5) {
+                showToast('⚠️ Plan ' + daysLeft + ' din mein expire ho jaayega!');
+              }
+            }
+            /* No expiry set OR valid — allow access */
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            startInfoSSE();
+          })
+          .catch(function() {
+            /* Can't check subscription — allow access (don't block on network error) */
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            startInfoSSE();
+          });
       } else {
         btn.disabled = false; btn.textContent = '⚡ Connect';
         errEl.style.display = 'block';
