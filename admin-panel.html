@@ -105,6 +105,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   </div>
   <div style="display:flex;gap:8px;">
     <button class="btn btn-green" onclick="openAddClient()" style="font-size:14px;padding:10px 18px;border-radius:12px;">+ Add Client</button>
+    <button class="btn btn-outline" onclick="openSettings()" style="font-size:14px;padding:10px 14px;border-radius:12px;">⚙️</button>
     <button class="btn btn-gray" onclick="doLogout()" style="font-size:13px;padding:10px 14px;">Logout</button>
   </div>
 </div>
@@ -198,6 +199,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   </div>
 </div>
 
+<!-- ===== SETTINGS MODAL ===== -->
+<div class="overlay" id="modal-settings">
+  <div class="modal">
+    <div style="font-weight:800;font-size:16px;color:#0c9c5e;margin-bottom:16px;">⚙️ Settings</div>
+
+    <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;
+      padding:12px 14px;margin-bottom:16px;font-size:12px;color:#166534;line-height:1.5;">
+      Yeh settings <b>sirf is device ke browser mein</b> save hoti hain.<br>
+      Jab bhi link generate karo, current settings us link mein automatically embed ho jaati hain.
+    </div>
+
+    <div class="fg">
+      <label>Telegram ID (without @)</label>
+      <input id="s-tg-id" placeholder="e.g. munnadhotarchor"
+        style="font-size:16px;font-family:monospace;letter-spacing:.5px;"/>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">
+        Yeh ID suspended/expired users ko contact ke liye dikhegi
+      </div>
+    </div>
+
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;
+      padding:10px 12px;margin-bottom:14px;font-size:12px;color:#92400e;">
+      ⚠️ Settings save karne ke baad <b>nayi links generate karo</b> — purani links mein purani ID rahegi.
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn btn-gray" onclick="closeModal('modal-settings')">Cancel</button>
+      <button class="btn btn-green" onclick="saveSettings()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== CHANGE PASSWORD MODAL ===== -->
 <div class="overlay" id="modal-cpw">
   <div class="modal">
@@ -286,7 +319,9 @@ async function getKey(pass) {
   );
 }
 async function encryptLink(c) {
-  var payload = JSON.stringify({ u: c.fbUrl, k: c.apiKey||'', n: c.node||'csc6', p: c.pid||'' });
+  var tgId = localStorage.getItem('csc_tg_id') || 'munnadhotarchor';
+  tgId = tgId.replace(/^@/,''); /* remove @ if present */
+  var payload = JSON.stringify({ u: c.fbUrl, k: c.apiKey||'', n: c.node||'csc6', p: c.pid||'', t: tgId });
   var iv = crypto.getRandomValues(new Uint8Array(12));
   var key = await getKey(CSC_PASS);
   var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, new TextEncoder().encode(payload));
@@ -407,6 +442,20 @@ function renderList() {
   list.innerHTML=html;
   /* Fetch Firebase passwords for all visible clients */
   filtered.forEach(function(c) { fetchClientPassword(c.id); });
+}
+
+/* ===== SETTINGS ===== */
+function openSettings() {
+  var saved = localStorage.getItem('csc_tg_id') || 'munnadhotarchor';
+  document.getElementById('s-tg-id').value = saved.replace(/^@/,'');
+  openModal('modal-settings');
+}
+function saveSettings() {
+  var tg = document.getElementById('s-tg-id').value.trim().replace(/^@/,'');
+  if (!tg) { showToast('Telegram ID daalo!'); return; }
+  localStorage.setItem('csc_tg_id', tg);
+  closeModal('modal-settings');
+  showToast('✅ Settings saved! Ab nayi links generate karo.');
 }
 
 /* ===== FIREBASE PASSWORD FUNCTIONS ===== */
