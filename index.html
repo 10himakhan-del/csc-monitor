@@ -2742,27 +2742,24 @@ function startAutoSms() {
   AUTO_SMS_DEV = CUR;
   AUTO_SMS_OFFSET = 0;
   updateAutoSmsBtn(true);
-  showToast('🤖 Auto-SMS ON — purane messages skip ho rahe hain...');
-  /* First: get current offset to skip ALL existing messages */
+  showToast('🤖 Auto-SMS ON — shuru ho raha hai...');
+  /* Get latest update_id so we only process NEW messages from now */
   var url = TG_WORKER_URL.replace(/\/+$/,'')
     + '?token=' + encodeURIComponent(TG_BOT_TOKEN)
-    + '&offset=-1';
+    + '&offset=0';
   fetch(url)
     .then(function(r){ return r.json(); })
     .then(function(data){
       if (data.ok && data.result && data.result.length) {
-        /* Set offset to last message + 1 so we skip all old messages */
+        /* Jump offset to latest+1 — skip all existing messages */
         AUTO_SMS_OFFSET = data.result[data.result.length - 1].update_id + 1;
-      } else {
-        /* No messages yet — set a high offset via getUpdates with limit=1 */
-        AUTO_SMS_OFFSET = 0;
+        console.log('Auto-SMS: offset set to', AUTO_SMS_OFFSET);
       }
-      showToast('🤖 Auto-SMS ON — ab naaye messages ka wait hai');
-      /* Start polling every 3 seconds for NEW messages only */
+      showToast('🤖 Auto-SMS ON ✅ — naaye messages ka wait hai');
       AUTO_SMS_INTERVAL = setInterval(pollTelegram, 3000);
     })
-    .catch(function(){
-      AUTO_SMS_OFFSET = 0;
+    .catch(function(e){
+      console.log('Auto-SMS start error:', e.message);
       showToast('🤖 Auto-SMS ON');
       AUTO_SMS_INTERVAL = setInterval(pollTelegram, 3000);
     });
@@ -2831,9 +2828,13 @@ function pollTelegram() {
         }
         var msg = update.channel_post || update.message;
         if (!msg) return;
-        /* Filter by chat ID */
+        /* Filter by chat ID — compare as strings to handle numeric IDs */
         var chatId = String(msg.chat && msg.chat.id);
-        if (TG_CHAT_ID && chatId !== String(TG_CHAT_ID)) return;
+        var expectedId = String(TG_CHAT_ID).trim();
+        if (expectedId && chatId !== expectedId) {
+          console.log('TG: wrong chat', chatId, '!=', expectedId);
+          return;
+        }
         var text = msg.text || msg.caption || '';
         if (!text) return;
         var parsed = parseTgMessage(text);
