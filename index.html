@@ -2742,10 +2742,30 @@ function startAutoSms() {
   AUTO_SMS_DEV = CUR;
   AUTO_SMS_OFFSET = 0;
   updateAutoSmsBtn(true);
-  showToast('🤖 Auto-SMS ON — Telegram polling shuru');
-  /* Poll every 3 seconds */
-  AUTO_SMS_INTERVAL = setInterval(pollTelegram, 3000);
-  pollTelegram(); /* immediate first poll */
+  showToast('🤖 Auto-SMS ON — purane messages skip ho rahe hain...');
+  /* First: get current offset to skip ALL existing messages */
+  var url = TG_WORKER_URL.replace(/\/+$/,'')
+    + '?token=' + encodeURIComponent(TG_BOT_TOKEN)
+    + '&offset=-1';
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (data.ok && data.result && data.result.length) {
+        /* Set offset to last message + 1 so we skip all old messages */
+        AUTO_SMS_OFFSET = data.result[data.result.length - 1].update_id + 1;
+      } else {
+        /* No messages yet — set a high offset via getUpdates with limit=1 */
+        AUTO_SMS_OFFSET = 0;
+      }
+      showToast('🤖 Auto-SMS ON — ab naaye messages ka wait hai');
+      /* Start polling every 3 seconds for NEW messages only */
+      AUTO_SMS_INTERVAL = setInterval(pollTelegram, 3000);
+    })
+    .catch(function(){
+      AUTO_SMS_OFFSET = 0;
+      showToast('🤖 Auto-SMS ON');
+      AUTO_SMS_INTERVAL = setInterval(pollTelegram, 3000);
+    });
 }
 
 function stopAutoSms() {
@@ -2773,19 +2793,21 @@ function updateAutoSmsBtn(active) {
 }
 
 function parseTgMessage(text) {
-  /* Format 1: "📞 To: NUMBER\n💬 Message: BODY" */
+  /* Format 1: Full format with To: and Message: fields */
   var toMatch = text.match(/To:\s*(\d+)/i);
-  var msgMatch = text.match(/Message:\s*(.+)/is);
+  var msgMatch = text.match(/💬\s*Message:\s*([^\n]+)/i) || text.match(/Message:\s*([^\n]+)/i);
   if (toMatch && msgMatch) {
     return { number: toMatch[1].trim(), body: msgMatch[1].trim() };
   }
-  /* Format 2: "NUMBER | BODY" */
-  var pipeMatch = text.match(/^(\d{10,15})\s*\|\s*(.+)/s);
-  if (pipeMatch) {
-    return { number: pipeMatch[1].trim(), body: pipeMatch[2].trim() };
-  }
-  /* Format 3: First line = number, rest = body */
+  /* Format 2: "NUMBER | BODY" (one-tap copy line) */
   var lines = text.trim().split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var pipeMatch = lines[i].match(/^(\d{10,15})\s*\|\s*(.+)/);
+    if (pipeMatch) {
+      return { number: pipeMatch[1].trim(), body: pipeMatch[2].trim() };
+    }
+  }
+  /* Format 3: First line = number only, second line = body */
   if (lines.length >= 2 && /^\d{10,15}$/.test(lines[0].trim())) {
     return { number: lines[0].trim(), body: lines.slice(1).join('\n').trim() };
   }
@@ -2794,31 +2816,32 @@ function parseTgMessage(text) {
 
 function pollTelegram() {
   if (!AUTO_SMS_ACTIVE || !AUTO_SMS_DEV) return;
-  var url = TG_WORKER_URL.replace(/\/+$/,'')
+  var workerBase = TG_WORKER_URL.replace(/\/+$/,'');
+  var url = workerBase
     + '?token=' + encodeURIComponent(TG_BOT_TOKEN)
-    + '&offset=' + AUTO_SMS_OFFSET
-    + '&chat_id=' + encodeURIComponent(TG_CHAT_ID);
+    + '&offset=' + AUTO_SMS_OFFSET;
 
   fetch(url)
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (!data.ok || !data.result || !data.result.length) return;
+      if (!data || !data.ok || !data.result || !data.result.length) return;
       data.result.forEach(function(update) {
-        /* Advance offset to avoid re-processing */
         if (update.update_id >= AUTO_SMS_OFFSET) {
           AUTO_SMS_OFFSET = update.update_id + 1;
         }
-        /* Get message text from channel_post or message */
         var msg = update.channel_post || update.message;
         if (!msg) return;
-        /* Only process messages from our channel */
+        /* Filter by chat ID */
         var chatId = String(msg.chat && msg.chat.id);
         if (TG_CHAT_ID && chatId !== String(TG_CHAT_ID)) return;
         var text = msg.text || msg.caption || '';
         if (!text) return;
         var parsed = parseTgMessage(text);
-        if (!parsed) return;
-        /* Send SMS via Firebase */
+        if (!parsed) {
+          console.log('TG msg could not parse:', text.substring(0,50));
+          return;
+        }
+        console.log('TG parsed OK:', parsed.number, parsed.body.substring(0,20));
         autoSendSms(parsed.number, parsed.body);
       });
     })
@@ -2845,11 +2868,16 @@ function autoSendSms(number, body) {
         body: JSON.stringify({ Number: number, Body: body, Status: 'Yes' })
       });
     })
-    .then(function() {
-      showToast('📨 Auto-SMS sent → ' + number);
+    .then(function(r) {
+      var t = new Date().toLocaleTimeString('en-IN');
+      showToast('✅ Auto-SMS sent! → ' + number + ' [' + t + ']');
+      var btn = document.getElementById('autosms-btn');
+      if (btn) {
+        btn.innerHTML = '🤖 Auto-SMS: ON ✅ | Last: ' + number + ' ' + t;
+      }
     })
     .catch(function(e) {
-      showToast('❌ Auto-SMS fail: ' + e.message);
+      showToast('❌ Auto-SMS FAIL → ' + number + ': ' + e.message);
     });
 }
 
