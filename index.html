@@ -112,9 +112,9 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 .dev-num{font-size:13px;font-weight:700;color:var(--muted);min-width:28px;}
 .dev-img{font-size:34px;filter:saturate(.8) brightness(1.2);}
 .dev-info{flex:1;}
-.dev-name{font-size:14px;font-weight:700;color:var(--text-bright);}
-.dev-id{font-size:11px;color:var(--muted);margin-top:2px;}
-.dev-bat{font-size:11px;color:var(--muted);margin-top:2px;}
+.dev-name{font-size:14px;font-weight:700;color:#ffffff;}
+.dev-id{font-size:11px;color:#6b8f7a;margin-top:2px;}
+.dev-bat{font-size:11px;color:#6b8f7a;margin-top:2px;}
 .dev-status-row{display:flex;align-items:center;justify-content:space-between;
   padding:7px 13px;border-top:1px solid var(--border);}
 .st-on{color:var(--green);font-size:12px;font-weight:700;}
@@ -319,7 +319,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 </style>
 
 <!-- ===== PLANS / LANDING SCREEN ===== -->
-<div id="plans-screen">
+<div id="plans-screen" style="display:none;">
   <div class="plans-hero">
     <div class="plans-logo">📡</div>
     <div class="plans-badge">Professional Monitoring System</div>
@@ -430,18 +430,45 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 
   <!-- CTA -->
   <div class="cta-section">
-    <button class="tg-btn" onclick="window.open('https://t.me/munnadhotarchor','_blank')">
+    <button class="tg-btn" id="tg-contact-btn" onclick="openTelegram()">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.325.889z"/></svg>
       Telegram pe Contact Karo
     </button>
     <div class="tg-sub">
       Plan lene ke liye ya koi bhi sawaal ke liye<br/>
-      <strong style="color:#229ED9;">@munnadhotarchor</strong> pe message karo
+      <strong style="color:#229ED9;" id="tg-id-display">@munnadhotarchor</strong> pe message karo
     </div>
   </div>
 </div>
 
-<div id="setup-screen">
+<!-- ===== INIT LOADER (shown during decryption) ===== -->
+<div id="init-loader" style="display:none;position:fixed;inset:0;z-index:9999;
+  background:#0a1810;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+  <div style="width:36px;height:36px;border:3px solid rgba(255,255,255,.1);
+    border-top-color:#0c9c5e;border-radius:50%;animation:sp .8s linear infinite;"></div>
+  <div style="color:#6b8f7a;font-size:13px;">Loading...</div>
+</div>
+
+<!-- ===== ACCESS DENIED SCREEN ===== -->
+<div id="denied-screen" style="display:none;position:fixed;inset:0;z-index:9999;
+  background:#0a1810;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;">
+  <div style="font-size:56px;margin-bottom:16px;" id="denied-icon">🚫</div>
+  <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:8px;" id="denied-title">Access Denied</div>
+  <div style="font-size:14px;color:#94a3b8;line-height:1.7;margin-bottom:32px;max-width:280px;" id="denied-msg">
+    Aapka plan expire ho gaya hai.
+  </div>
+  <button onclick="openTelegram()"
+    style="background:linear-gradient(135deg,#229ED9,#1a7db5);color:#fff;border:none;
+    border-radius:14px;padding:15px 28px;font-size:15px;font-weight:800;cursor:pointer;
+    font-family:inherit;display:flex;align-items:center;gap:10px;margin:0 auto;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.325.889z"/></svg>
+    Contact Admin
+  </button>
+  <div style="margin-top:10px;font-size:13px;color:#4b7a5e;" id="denied-tg-id">@munnadhotarchor</div>
+</div>
+
+<div id="setup-screen" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:20px;
+  background:linear-gradient(160deg,#0a1810 0%,#0c2a1a 50%,#071510 100%);">
   <div class="sc">
     <div class="logo">
       <div style="font-size:50px">&#128225;</div>
@@ -787,59 +814,71 @@ function saveProfile() {
    User only sees password field - everything else is embedded in the link. */
 var QC_PARAMS = null; /* set if URL params were found */
 
+function openTelegram() {
+  var tg = (QC_PARAMS && QC_PARAMS.tg) ? QC_PARAMS.tg : 'munnadhotarchor';
+  tg = tg.replace(/^@/,'');
+  window.open('https://t.me/' + tg, '_blank');
+}
+
+function showDenied(icon, title, msg) {
+  var tg = (QC_PARAMS && QC_PARAMS.tg) ? QC_PARAMS.tg : 'munnadhotarchor';
+  tg = '@' + tg.replace(/^@/,'');
+  document.getElementById('denied-icon').textContent = icon;
+  document.getElementById('denied-title').textContent = title;
+  document.getElementById('denied-msg').textContent = msg;
+  document.getElementById('denied-tg-id').textContent = tg;
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('denied-screen').style.display = 'flex';
+}
+
 /* ===== ENCRYPTION HELPERS =====
    AES-GCM via browser's built-in crypto.subtle.
    Key is derived from a hardcoded passphrase using PBKDF2.
    Data travels in the URL #hash — never reaches any server,
    never stored in browser history in readable form. */
-var CSC_PASS = 'csc$m0n!t0r#2025'; /* encryption passphrase — never shown to users */
+/* ===== URL ENCODING (Base64 in #hash — instant, no delay) =====
+   Data travels in the URL #hash — never reaches any server,
+   and browser history stores the encoded form, not plain text.
+   This replaces the slow PBKDF2/AES approach that was causing
+   plans page to flash before password screen. */
 
-async function getKey(pass) {
-  var enc = new TextEncoder();
-  var keyMat = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt: enc.encode('cscSalt99'), iterations: 100000, hash:'SHA-256' },
-    keyMat, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
-  );
-}
-
-async function encryptData(obj) {
-  /* Short keys to keep URL small */
-  var payload = JSON.stringify({ u: obj.furl, k: obj.key, n: obj.node, p: obj.pid||'' });
-  var iv = crypto.getRandomValues(new Uint8Array(12));
-  var key = await getKey(CSC_PASS);
-  var enc = new TextEncoder();
-  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, enc.encode(payload));
-  /* Combine iv + ciphertext → base64url (no padding, URL safe) */
-  var combined = new Uint8Array(iv.length + ct.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(ct), iv.length);
-  return btoa(String.fromCharCode(...combined))
+function encodeParams(obj) {
+  var payload = JSON.stringify({ u: obj.furl, k: obj.key||'', n: obj.node||'csc6', p: obj.pid||'', t: obj.tg||'', a: obj.admin?1:0 });
+  return btoa(unescape(encodeURIComponent(payload)))
     .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
 
-async function decryptData(b64) {
-  /* Reverse base64url */
+function decodeParams(b64) {
   var s = b64.replace(/-/g,'+').replace(/_/g,'/');
   while (s.length % 4) s += '=';
-  var bytes = Uint8Array.from(atob(s), function(c){ return c.charCodeAt(0); });
-  var iv = bytes.slice(0, 12);
-  var ct = bytes.slice(12);
-  var key = await getKey(CSC_PASS);
-  var dec = await crypto.subtle.decrypt({ name:'AES-GCM', iv:iv }, key, ct);
-  var obj = JSON.parse(new TextDecoder().decode(dec));
-  return { furl: obj.u, key: obj.k||'', node: obj.n||'csc6', pid: obj.p||'' };
+  var payload = decodeURIComponent(escape(atob(s)));
+  var obj = JSON.parse(payload);
+  return { furl: obj.u, key: obj.k||'', node: obj.n||'csc6', pid: obj.p||'', tg: obj.t||'munnadhotarchor', admin: obj.a===1 };
 }
+
+/* Keep these names for compatibility with openLinkGen which calls encryptData */
+async function encryptData(obj) { return encodeParams(obj); }
+async function decryptData(b64) { return decodeParams(b64); }
 
 async function readUrlParams() {
   try {
-    var hash = window.location.hash.slice(1); /* remove the # */
+    var hash = window.location.hash.slice(1);
     if (hash) {
-      /* Encrypted hash link — decrypt and show password screen */
+      /* Hash present — show loading while decrypting, hide everything */
+      document.getElementById('plans-screen').style.display = 'none';
+      document.getElementById('setup-screen').style.display = 'none';
+      /* Show a minimal loading indicator */
+      var loader = document.getElementById('init-loader');
+      if (loader) loader.style.display = 'flex';
       try {
         var decoded = await decryptData(hash);
-        QC_PARAMS = { furl: decoded.furl.replace(/\/+$/,''), key: decoded.key, node: decoded.node, pid: decoded.pid };
-        document.getElementById('plans-screen').style.display = 'none';
+        if (loader) loader.style.display = 'none';
+        QC_PARAMS = { furl: decoded.furl.replace(/\/+$/,''), key: decoded.key, node: decoded.node, pid: decoded.pid, tg: decoded.tg, admin: decoded.admin||false };
+        var tgId = '@' + (decoded.tg || 'munnadhotarchor');
+        var tgDisp = document.getElementById('tg-id-display');
+        if (tgDisp) tgDisp.textContent = tgId;
+        var deniedTg = document.getElementById('denied-tg-id');
+        if (deniedTg) deniedTg.textContent = tgId;
         document.getElementById('setup-screen').style.display = 'flex';
         document.getElementById('qc-section').style.display = 'block';
         document.getElementById('full-setup-section').style.display = 'none';
@@ -848,18 +887,16 @@ async function readUrlParams() {
           if (p) p.focus();
         }, 150);
       } catch(e) {
-        /* Invalid/tampered hash — show plans page */
+        /* Decryption failed — invalid link, show plans */
+        if (loader) loader.style.display = 'none';
         document.getElementById('plans-screen').style.display = 'block';
-        document.getElementById('setup-screen').style.display = 'none';
       }
     } else {
-      /* No hash — show plans/landing page */
+      /* No hash — show plans page */
       document.getElementById('plans-screen').style.display = 'block';
-      document.getElementById('setup-screen').style.display = 'none';
     }
   } catch(e) {
     document.getElementById('plans-screen').style.display = 'block';
-    document.getElementById('setup-screen').style.display = 'none';
   }
 }
 
@@ -892,22 +929,25 @@ function doQuickConnect() {
         return;
       }
       if (String(storedPass) === pass) {
-        var blocked = false; /* flag to prevent dashboard open if suspended/expired */
+        /* Admin bypass link — skip all subscription checks */
+        if (QC_PARAMS && QC_PARAMS.admin) {
+          document.getElementById('setup-screen').style.display = 'none';
+          document.getElementById('app').style.display = 'flex';
+          startInfoSSE();
+          return;
+        }
+        var blocked = false;
         /* First check if account is suspended */
         fbGetRoot(NODE + '/Subscription/suspended')
           .then(function(suspended) {
             if (suspended === true || suspended === 'true') {
               blocked = true;
               btn.disabled = false; btn.textContent = '⚡ Connect';
-              errEl.style.display = 'block';
-              errEl.style.background = '#fef2f2';
-              errEl.style.border = '1.5px solid #fecaca';
-              errEl.style.borderRadius = '10px';
-              errEl.style.padding = '12px';
-              errEl.style.color = '#dc2626';
-              errEl.innerHTML = '🚫 <b>Account Suspended Hai!</b><br>'
-                + 'Aapka account admin dwara suspend kar diya gaya hai.<br>'
-                + 'Iske liye admin se sampark karein.';
+              showDenied(
+                '🚫',
+                'Account Suspended',
+                'Aapka account suspend kar diya gaya hai. Admin se contact karein.'
+              );
               return;
             }
             /* Not suspended — check expiry */
@@ -920,15 +960,11 @@ function doQuickConnect() {
                   if (daysLeft < 0) {
                     blocked = true;
                     btn.disabled = false; btn.textContent = '⚡ Connect';
-                    errEl.style.display = 'block';
-                    errEl.style.background = '#fef2f2';
-                    errEl.style.border = '1.5px solid #fecaca';
-                    errEl.style.borderRadius = '10px';
-                    errEl.style.padding = '12px';
-                    errEl.style.color = '#dc2626';
-                    errEl.innerHTML = '❌ <b>Plan Expire Ho Gaya!</b><br>'
-                      + 'Expiry: ' + exp.toLocaleDateString('en-IN') + '<br>'
-                      + 'Dashboard use karne ke liye payment karein aur admin se plan renew karaein.';
+                    showDenied(
+                      '❌',
+                      'Plan Expire Ho Gaya',
+                      'Expiry: ' + exp.toLocaleDateString('en-IN') + '\nPlan renew karne ke liye admin se contact karein.'
+                    );
                     return;
                   }
                   if (daysLeft <= 5) {
@@ -979,11 +1015,40 @@ function showFullSetup() {
   document.getElementById('full-setup-section').style.display = 'block';
 }
 
-window.addEventListener('load', async function() {
-  renderProfiles();
+window.addEventListener('load', function() {
   try { localStorage.removeItem('csc_saved_links'); } catch(e) {}
-  await readUrlParams();
+  handleHash();
 });
+
+window.addEventListener('hashchange', function() {
+  handleHash();
+});
+
+function handleHash() {
+  var hash = window.location.hash.slice(1);
+  if (hash) {
+    try {
+      var decoded = decodeParams(hash);
+      QC_PARAMS = { furl: decoded.furl.replace(/\/+$/,''), key: decoded.key, node: decoded.node, pid: decoded.pid, tg: decoded.tg, admin: decoded.admin||false };
+      var tgId = '@' + (decoded.tg || 'munnadhotarchor');
+      var d1 = document.getElementById('tg-id-display'); if (d1) d1.textContent = tgId;
+      var d2 = document.getElementById('denied-tg-id'); if (d2) d2.textContent = tgId;
+      document.getElementById('plans-screen').style.display = 'none';
+      document.getElementById('setup-screen').style.display = 'flex';
+      document.getElementById('qc-section').style.display = 'block';
+      document.getElementById('full-setup-section').style.display = 'none';
+      setTimeout(function() { var p = document.getElementById('qc-pass'); if (p) p.focus(); }, 150);
+    } catch(e) {
+      /* Bad hash — show plans */
+      document.getElementById('plans-screen').style.display = 'block';
+      document.getElementById('setup-screen').style.display = 'none';
+    }
+  } else {
+    renderProfiles();
+    document.getElementById('plans-screen').style.display = 'block';
+    document.getElementById('setup-screen').style.display = 'none';
+  }
+}
 
 /* ===== SETUP ===== */
 function doSetup() {
