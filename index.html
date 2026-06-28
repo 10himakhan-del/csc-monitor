@@ -572,14 +572,17 @@ html{overscroll-behavior-y:none;background:var(--bg);}
     <button class="act-btn" onclick="openSmsSend()">&#9993; SMS SEND</button>
   </div>
   <!-- Auto-SMS Telegram Button -->
-  <div style="padding:0 14px 10px;">
+  <div style="padding:0 14px 10px;display:flex;gap:8px;">
     <button id="autosms-btn" onclick="toggleAutoSms()"
-      style="width:100%;background:var(--surface2);color:#94a3b8;border:1.5px solid var(--border);
+      style="flex:1;background:var(--surface2);color:#94a3b8;border:1.5px solid var(--border);
       border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;
       font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.325.889z"/></svg>
       🤖 Auto-SMS: OFF
     </button>
+    <button onclick="openAutoSmsSettings()"
+      style="background:var(--surface2);color:var(--muted);border:1.5px solid var(--border);
+      border-radius:10px;padding:12px 14px;font-size:16px;cursor:pointer;">⚙️</button>
   </div>
   <div class="tabs">
     <button class="tab-btn active" id="tb-sms" onclick="switchDtl('sms')">&#128172; SMS</button>
