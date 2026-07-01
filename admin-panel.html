@@ -210,6 +210,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   <div style="display:flex;gap:8px;">
     <button class="btn btn-accent" onclick="openAddClient()"
       style="font-size:13px;padding:9px 16px;border-radius:10px;">+ Client</button>
+    <button class="btn" onclick="showSubAdmins()"
+      style="font-size:13px;padding:9px 14px;border-radius:10px;
+      background:linear-gradient(135deg,rgba(245,158,11,.2),rgba(245,158,11,.1));
+      color:#f59e0b;border:1px solid rgba(245,158,11,.3);">👥 Sub Admins</button>
     <button class="btn btn-outline" onclick="openSettings()"
       style="font-size:14px;padding:9px 12px;">⚙️</button>
     <button class="btn btn-gray" onclick="doLogout()"
@@ -246,7 +250,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 <div id="client-list"></div>
 </div>
 
-<!-- ADD CLIENT MODAL -->
+<!-- SUB ADMINS SCREEN -->
+<div id="subadmin-screen" style="display:none;">
+  <div class="dj-header" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="btn btn-gray" onclick="hideSubAdmins()"
+        style="font-size:12px;padding:7px 12px;">← Back</button>
+      <div>
+        <div class="dj-brand-name">Sub Admins</div>
+        <div class="dj-brand-sub">Manage buyers</div>
+      </div>
+    </div>
+    <button class="btn btn-accent" onclick="openAddSubAdmin()"
+      style="font-size:13px;padding:9px 14px;">+ Add</button>
+  </div>
+  <div id="subadmin-list">
+    <div style="text-align:center;color:var(--muted);padding:40px;">Loading...</div>
+  </div>
+</div>
+
+<!-- ADD SUB ADMIN MODAL -->
+<div class="overlay" id="modal-add-sa">
+  <div class="modal">
+    <div style="padding:16px 18px;background:linear-gradient(135deg,#f59e0b,#d97706);
+      border-radius:20px 20px 0 0;font-weight:800;font-size:15px;color:#fff;">
+      👤 New Sub Admin
+    </div>
+    <div style="padding:16px;">
+      <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);
+        border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--amber);">
+        Sub admin ko <b>panel.html</b> ka link milega.<br>
+        Woh sirf apne clients manage kar sakta hai.
+      </div>
+      <div class="fg"><label>Name / Business Name *</label>
+        <input id="sa-name" placeholder="e.g. Ramesh Enterprises"/></div>
+      <div class="fg"><label>Password * (jo woh login mein dalega)</label>
+        <input id="sa-pass" type="text" placeholder="e.g. Ram@2025"
+          style="font-family:monospace;font-size:16px;letter-spacing:1px;"/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-gray" onclick="closeModal('modal-add-sa')">Cancel</button>
+        <button class="btn btn-accent" onclick="saveSubAdmin()" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
+          Create Account
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE SUB ADMIN PASSWORD MODAL -->
+<div class="overlay" id="modal-sa-pw">
+  <div class="modal">
+    <div style="padding:16px 18px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+      border-radius:20px 20px 0 0;font-weight:800;font-size:15px;color:#fff;">
+      🔑 Change Sub Admin Password
+    </div>
+    <div style="padding:16px;">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;" id="sa-pw-name"></div>
+      <div class="fg"><label>New Password *</label>
+        <input id="sa-pw-input" type="text" placeholder="Naya password"
+          style="font-family:monospace;font-size:16px;letter-spacing:1px;"
+          onkeydown="if(event.key==='Enter')saveSubAdminPw()"/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-gray" onclick="closeModal('modal-sa-pw')">Cancel</button>
+        <button class="btn btn-accent" onclick="saveSubAdminPw()">💾 Save</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="modal-add">
   <div class="modal">
     <div style="padding:16px 18px;background:linear-gradient(135deg,var(--accent),var(--accent2));
@@ -488,20 +558,20 @@ window.addEventListener('load',function(){
 });
 
 /* --- FIREBASE STORAGE --- */
+/* --- FIREBASE SAVE (super admin uses djs_super node) --- */
 function fbSaveAll(){
-  fetch(ADMIN_FB_URL+'/djs_clients.json'+ADMIN_AUTH,{
+  fetch(ADMIN_FB_URL+'/djs_super.json'+ADMIN_AUTH,{
     method:'PUT',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(clients)
   }).catch(function(e){console.log('save err',e.message);});
   try{localStorage.setItem('djs_clients',JSON.stringify(clients));}catch(e){}
 }
 function fbLoadAll(cb){
-  fetch(ADMIN_FB_URL+'/djs_clients.json'+ADMIN_AUTH)
+  fetch(ADMIN_FB_URL+'/djs_super.json'+ADMIN_AUTH)
     .then(function(r){return r.json();})
     .then(function(data){
-      if(data&&Array.isArray(data)&&data.length>0){
-        clients=data;
-      } else {
+      if(data&&Array.isArray(data)&&data.length>0){clients=data;}
+      else{
         try{var l=JSON.parse(localStorage.getItem('djs_clients')||'[]');
           if(l.length>0){clients=l;fbSaveAll();}else{clients=[];}}
         catch(e){clients=[];}
@@ -515,6 +585,159 @@ function fbLoadAll(cb){
     });
 }
 function saveAll(){fbSaveAll();}
+
+/* --- SUB ADMIN MANAGEMENT --- */
+var subAdmins=[];
+var curSaId=null;
+
+function showSubAdmins(){
+  document.getElementById('main-panel').style.display='none';
+  document.getElementById('subadmin-screen').style.display='block';
+  loadSubAdmins();
+}
+function hideSubAdmins(){
+  document.getElementById('subadmin-screen').style.display='none';
+  document.getElementById('main-panel').style.display='block';
+}
+
+function loadSubAdmins(){
+  document.getElementById('subadmin-list').innerHTML=
+    '<div style="text-align:center;color:var(--muted);padding:30px;">Loading...</div>';
+  fetch(ADMIN_FB_URL+'/djs_admins.json'+ADMIN_AUTH)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      subAdmins=[];
+      if(data&&typeof data==='object'){
+        Object.keys(data).forEach(function(k){
+          if(data[k])subAdmins.push(Object.assign({_id:k},data[k]));
+        });
+      }
+      renderSubAdmins();
+    })
+    .catch(function(){
+      document.getElementById('subadmin-list').innerHTML=
+        '<div style="text-align:center;color:var(--red);padding:30px;">Load failed</div>';
+    });
+}
+
+function renderSubAdmins(){
+  var list=document.getElementById('subadmin-list');
+  if(!subAdmins.length){
+    list.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px;font-size:14px;">'+
+      'Koi sub admin nahi — "+ Add" se banao</div>';
+    return;
+  }
+  var html='';
+  subAdmins.forEach(function(sa){
+    var clientCount=(sa.clients&&Array.isArray(sa.clients))?sa.clients.length:0;
+    html+='<div class="client-card" style="border-left:4px solid #f59e0b;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+      +'<div style="font-weight:800;font-size:15px;color:var(--text);">👤 '+sa.name+'</div>'
+      +(sa.active!==false
+        ?'<span class="badge badge-ok">✅ Active</span>'
+        :'<span class="badge badge-exp">🚫 Blocked</span>')
+      +'</div>'
+      +'<div style="display:flex;gap:10px;margin-bottom:10px;">'
+      +'<div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);'
+      +'border-radius:8px;padding:6px 12px;font-size:13px;color:var(--accent);">'
+      +'📋 '+clientCount+' clients</div>'
+      +'<div style="background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.2);'
+      +'border-radius:8px;padding:6px 12px;font-size:11px;color:var(--muted);">'
+      +'Created: '+(sa.created?new Date(sa.created).toLocaleDateString('en-IN'):'—')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+      +'<button class="btn btn-outline" style="font-size:12px;padding:7px 11px;" '
+      +'onclick="copySaLink(\''+sa._id+'\')">🔗 Link</button>'
+      +'<button class="btn btn-accent" style="font-size:12px;padding:7px 11px;" '
+      +'onclick="openSaPw(\''+sa._id+'\',\''+sa.name.replace(/'/g,"\\'")+'\')">🔑 Password</button>'
+      +'<button class="btn '+(sa.active!==false?'btn-red':'btn-green')+'" '
+      +'style="font-size:12px;padding:7px 11px;" '
+      +'onclick="toggleSaActive(\''+sa._id+'\',\''+sa.name.replace(/'/g,"\\'")+'\')"> '
+      +(sa.active!==false?'🚫 Block':'✅ Unblock')+'</button>'
+      +'<button class="btn btn-red" style="font-size:12px;padding:7px 11px;" '
+      +'onclick="deleteSa(\''+sa._id+'\',\''+sa.name.replace(/'/g,"\\'")+'\')">🗑️</button>'
+      +'</div></div>';
+  });
+  list.innerHTML=html;
+}
+
+function openAddSubAdmin(){
+  document.getElementById('sa-name').value='';
+  document.getElementById('sa-pass').value='';
+  openModal('modal-add-sa');
+  setTimeout(function(){document.getElementById('sa-name').focus();},200);
+}
+
+async function saveSubAdmin(){
+  var name=document.getElementById('sa-name').value.trim();
+  var pass=document.getElementById('sa-pass').value.trim();
+  if(!name||!pass){showToast('Name aur password zaroori hai!');return;}
+  var hash=await sha256(pass);
+  var id='sa_'+Date.now();
+  var obj={name:name,password_hash:hash,active:true,
+    created:new Date().toISOString(),clients:[]};
+  fetch(ADMIN_FB_URL+'/djs_admins/'+id+'.json'+ADMIN_AUTH,{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(obj)
+  }).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    showToast('✅ Sub admin created: '+name);
+    closeModal('modal-add-sa');
+    loadSubAdmins();
+  }).catch(function(e){showToast('Error: '+e.message);});
+}
+
+function copySaLink(id){
+  /* Sub admin link uses panel.html with their ID in hash */
+  var base=window.location.origin+window.location.pathname.replace('admin-panel.html','panel.html');
+  var link=base+'#'+btoa('sa:'+id);
+  if(navigator.clipboard)navigator.clipboard.writeText(link).catch(function(){});
+  showToast('📋 Sub admin link copied!');
+}
+
+function openSaPw(id,name){
+  curSaId=id;
+  document.getElementById('sa-pw-name').textContent=name;
+  document.getElementById('sa-pw-input').value='';
+  openModal('modal-sa-pw');
+  setTimeout(function(){document.getElementById('sa-pw-input').focus();},200);
+}
+
+async function saveSubAdminPw(){
+  if(!curSaId)return;
+  var pass=document.getElementById('sa-pw-input').value.trim();
+  if(!pass){showToast('Password daalo!');return;}
+  var hash=await sha256(pass);
+  fetch(ADMIN_FB_URL+'/djs_admins/'+curSaId+'/password_hash.json'+ADMIN_AUTH,{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(hash)
+  }).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    showToast('✅ Password updated!');
+    closeModal('modal-sa-pw');
+  }).catch(function(e){showToast('Error: '+e.message);});
+}
+
+function toggleSaActive(id,name){
+  var sa=subAdmins.find(function(x){return x._id===id;});
+  if(!sa)return;
+  var newVal=sa.active===false?true:false;
+  if(!confirm("'"+name+"' ko "+(newVal?'unblock':'block')+" karo?"))return;
+  fetch(ADMIN_FB_URL+'/djs_admins/'+id+'/active.json'+ADMIN_AUTH,{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(newVal)
+  }).then(function(){
+    showToast((newVal?'✅ Unblocked: ':'🚫 Blocked: ')+name);
+    loadSubAdmins();
+  }).catch(function(e){showToast('Error: '+e.message);});
+}
+
+function deleteSa(id,name){
+  if(!confirm("'"+name+"' ko permanently delete karo?"))return;
+  fetch(ADMIN_FB_URL+'/djs_admins/'+id+'.json'+ADMIN_AUTH,{method:'DELETE'})
+    .then(function(){showToast('Deleted: '+name);loadSubAdmins();})
+    .catch(function(e){showToast('Error: '+e.message);});
+}
 
 /* --- APP DATA --- */
 var PLANS={
