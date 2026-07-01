@@ -476,7 +476,7 @@ var ADMIN_FB_KEY=_d(_EK,_S);
 var ADMIN_AUTH='?auth='+encodeURIComponent(ADMIN_FB_KEY);
 
 /* --- ADMIN PASSWORD (SHA-256 hashed) --- */
-var ADMIN_HASH='d8ac7a48da7242925919a929ef4f0ac44fce7a662ac25e4a4dc2df43009e7fe1';
+var ADMIN_HASH='e55965fa1bcd99ec3bde972420ad749f70d9957c0ece4f1388c7095b167f5c5d';
 
 /* --- SESSION --- */
 var SESSION_KEY='djs_auth';
@@ -645,6 +645,15 @@ function renderSubAdmins(){
       +'border-radius:8px;padding:6px 12px;font-size:11px;color:var(--muted);">'
       +'Created: '+(sa.created?new Date(sa.created).toLocaleDateString('en-IN'):'—')+'</div>'
       +'</div>'
+      /* Password display */
+      +'<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);'
+      +'border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">'
+      +'<div>'
+      +'<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">🔑 Login Password</div>'
+      +'<div style="font-size:16px;font-weight:800;color:var(--green);letter-spacing:2px;font-family:monospace;">'
+      +(sa.password_plain||'••••••••')+'</div>'
+      +'</div>'
+      +'</div>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
       +'<button class="btn btn-outline" style="font-size:12px;padding:7px 11px;" '
       +'onclick="copySaLink(\''+sa._id+'\')">🔗 Link</button>'
@@ -674,7 +683,7 @@ async function saveSubAdmin(){
   if(!name||!pass){showToast('Name aur password zaroori hai!');return;}
   var hash=await sha256(pass);
   var id='sa_'+Date.now();
-  var obj={name:name,password_hash:hash,active:true,
+  var obj={name:name,password_hash:hash,password_plain:pass,active:true,
     created:new Date().toISOString(),clients:[]};
   fetch(ADMIN_FB_URL+'/djs_admins/'+id+'.json'+ADMIN_AUTH,{
     method:'PUT',headers:{'Content-Type':'application/json'},
@@ -708,13 +717,15 @@ async function saveSubAdminPw(){
   var pass=document.getElementById('sa-pw-input').value.trim();
   if(!pass){showToast('Password daalo!');return;}
   var hash=await sha256(pass);
-  fetch(ADMIN_FB_URL+'/djs_admins/'+curSaId+'/password_hash.json'+ADMIN_AUTH,{
-    method:'PUT',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(hash)
+  /* Save both hash and plain password */
+  fetch(ADMIN_FB_URL+'/djs_admins/'+curSaId+'.json'+ADMIN_AUTH,{
+    method:'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({password_hash:hash,password_plain:pass})
   }).then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);
     showToast('✅ Password updated!');
     closeModal('modal-sa-pw');
+    loadSubAdmins();
   }).catch(function(e){showToast('Error: '+e.message);});
 }
 
