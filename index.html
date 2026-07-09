@@ -1046,13 +1046,26 @@ function handleHash() {
       var tgId = '@' + (decoded.tg || 'munnadhotarchor');
       var d1 = document.getElementById('tg-id-display'); if (d1) d1.textContent = tgId;
       var d2 = document.getElementById('denied-tg-id'); if (d2) d2.textContent = tgId;
+
+      /* Admin link — auto connect, no password needed */
+      if (QC_PARAMS.admin) {
+        document.getElementById('plans-screen').style.display = 'none';
+        document.getElementById('setup-screen').style.display = 'none';
+        DB = QC_PARAMS.furl;
+        APIKEY = QC_PARAMS.key;
+        NODE = QC_PARAMS.node || 'csc6';
+        document.getElementById('app').style.display = 'flex';
+        startInfoSSE();
+        return;
+      }
+
+      /* Client link — show password screen */
       document.getElementById('plans-screen').style.display = 'none';
       document.getElementById('setup-screen').style.display = 'flex';
       document.getElementById('qc-section').style.display = 'block';
       document.getElementById('full-setup-section').style.display = 'none';
       setTimeout(function() { var p = document.getElementById('qc-pass'); if (p) p.focus(); }, 150);
     } catch(e) {
-      /* Bad hash — show plans */
       document.getElementById('plans-screen').style.display = 'block';
       document.getElementById('setup-screen').style.display = 'none';
     }
