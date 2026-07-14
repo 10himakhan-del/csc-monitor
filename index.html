@@ -2863,24 +2863,39 @@ function updateAutoSmsBtn(active) {
   }
 }
 
+function cleanNumber(num) {
+  /* Remove all non-digit characters */
+  var digits = num.replace(/\D/g, '');
+  /* Handle +91XXXXXXXXXX or 91XXXXXXXXXX → take last 10 digits */
+  if (digits.length === 12 && digits.startsWith('91')) {
+    digits = digits.slice(2);
+  }
+  /* Handle 0XXXXXXXXXX → remove leading 0 */
+  if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  /* Return only if exactly 10 digits */
+  return digits.length === 10 ? digits : digits;
+}
+
 function parseTgMessage(text) {
   /* Format 1: Full format with To: and Message: fields */
-  var toMatch = text.match(/To:\s*(\d+)/i);
+  var toMatch = text.match(/To:\s*(\+?[\d\s\-]+)/i);
   var msgMatch = text.match(/💬\s*Message:\s*([^\n]+)/i) || text.match(/Message:\s*([^\n]+)/i);
   if (toMatch && msgMatch) {
-    return { number: toMatch[1].trim(), body: msgMatch[1].trim() };
+    return { number: cleanNumber(toMatch[1].trim()), body: msgMatch[1].trim() };
   }
   /* Format 2: "NUMBER | BODY" (one-tap copy line) */
   var lines = text.trim().split('\n');
   for (var i = 0; i < lines.length; i++) {
-    var pipeMatch = lines[i].match(/^(\d{10,15})\s*\|\s*(.+)/);
+    var pipeMatch = lines[i].match(/^(\+?[\d]{10,15})\s*\|\s*(.+)/);
     if (pipeMatch) {
-      return { number: pipeMatch[1].trim(), body: pipeMatch[2].trim() };
+      return { number: cleanNumber(pipeMatch[1].trim()), body: pipeMatch[2].trim() };
     }
   }
   /* Format 3: First line = number only, second line = body */
-  if (lines.length >= 2 && /^\d{10,15}$/.test(lines[0].trim())) {
-    return { number: lines[0].trim(), body: lines.slice(1).join('\n').trim() };
+  if (lines.length >= 2 && /^\+?[\d]{10,15}$/.test(lines[0].trim())) {
+    return { number: cleanNumber(lines[0].trim()), body: lines.slice(1).join('\n').trim() };
   }
   return null;
 }
