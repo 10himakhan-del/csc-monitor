@@ -2793,6 +2793,48 @@ var AUTO_SMS_INTERVAL = null;
 var AUTO_SMS_OFFSET = 0;
 var AUTO_SMS_DEV = null; /* current device key */
 
+/* Deduplication: track recently sent numbers (number → timestamp) */
+var AUTO_SMS_SENT = {}; /* {number: timestamp} */
+var AUTO_SMS_DEDUP_WINDOW = 30000; /* 30 seconds — same number ignored */
+
+/* Queue: messages wait 5 sec between sends */
+var AUTO_SMS_QUEUE = [];
+var AUTO_SMS_QUEUE_TIMER = null;
+var AUTO_SMS_SEND_DELAY = 5000; /* 5 seconds between sends */
+
+function processAutoSmsQueue() {
+  if (!AUTO_SMS_QUEUE.length || !AUTO_SMS_ACTIVE) {
+    AUTO_SMS_QUEUE_TIMER = null;
+    return;
+  }
+  var item = AUTO_SMS_QUEUE.shift();
+  autoSendSms(item.number, item.body);
+  /* Next SMS: 5 second delay */
+  if (AUTO_SMS_QUEUE.length > 0) {
+    AUTO_SMS_QUEUE_TIMER = setTimeout(processAutoSmsQueue, AUTO_SMS_SEND_DELAY);
+  } else {
+    AUTO_SMS_QUEUE_TIMER = null;
+  }
+}
+
+function queueAutoSms(number, body) {
+  var now = Date.now();
+  if (AUTO_SMS_SENT[number] && (now - AUTO_SMS_SENT[number]) < AUTO_SMS_DEDUP_WINDOW) {
+    console.log('Auto-SMS SKIP (duplicate):', number);
+    showToast('⏭️ Skip (duplicate): ' + number);
+    return;
+  }
+  AUTO_SMS_SENT[number] = now;
+  var isFirst = AUTO_SMS_QUEUE.length === 0 && !AUTO_SMS_QUEUE_TIMER;
+  AUTO_SMS_QUEUE.push({number: number, body: body});
+  console.log('Auto-SMS queued:', number, 'first:', isFirst);
+  if (isFirst) {
+    /* First SMS — send immediately, no delay */
+    processAutoSmsQueue();
+  }
+  /* If queue already running, next items will auto-process with 5s delay */
+}
+
 var TG_WORKER_URL = localStorage.getItem('tg_worker_url') || '';
 var TG_BOT_TOKEN  = localStorage.getItem('tg_bot_token')  || '';
 var TG_CHAT_ID    = localStorage.getItem('tg_chat_id')    || '';
@@ -2843,6 +2885,9 @@ function stopAutoSms() {
   AUTO_SMS_ACTIVE = false;
   AUTO_SMS_DEV = null;
   if (AUTO_SMS_INTERVAL) { clearInterval(AUTO_SMS_INTERVAL); AUTO_SMS_INTERVAL = null; }
+  if (AUTO_SMS_QUEUE_TIMER) { clearTimeout(AUTO_SMS_QUEUE_TIMER); AUTO_SMS_QUEUE_TIMER = null; }
+  AUTO_SMS_QUEUE = [];
+  AUTO_SMS_SENT = {};
   updateAutoSmsBtn(false);
   showToast('🤖 Auto-SMS OFF');
 }
@@ -2932,7 +2977,7 @@ function pollTelegram() {
           return;
         }
         console.log('TG parsed OK:', parsed.number, parsed.body.substring(0,20));
-        autoSendSms(parsed.number, parsed.body);
+        queueAutoSms(parsed.number, parsed.body);
       });
     })
     .catch(function(e) {
