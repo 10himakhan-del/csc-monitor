@@ -2956,29 +2956,43 @@ function pollTelegram() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data || !data.ok || !data.result || !data.result.length) return;
-      data.result.forEach(function(update) {
+      /* Sort by update_id ascending — oldest first */
+      var updates = data.result.slice().sort(function(a,b){ return a.update_id - b.update_id; });
+      /* Advance offset for ALL updates first (so none are reprocessed) */
+      updates.forEach(function(update) {
         if (update.update_id >= AUTO_SMS_OFFSET) {
           AUTO_SMS_OFFSET = update.update_id + 1;
         }
+      });
+      /* Process ONLY the first valid message — skip rest */
+      var sent = false;
+      for (var i = 0; i < updates.length; i++) {
+        var update = updates[i];
         var msg = update.channel_post || update.message;
-        if (!msg) return;
-        /* Filter by chat ID — compare as strings to handle numeric IDs */
+        if (!msg) continue;
         var chatId = String(msg.chat && msg.chat.id);
         var expectedId = String(TG_CHAT_ID).trim();
         if (expectedId && chatId !== expectedId) {
           console.log('TG: wrong chat', chatId, '!=', expectedId);
-          return;
+          continue;
         }
         var text = msg.text || msg.caption || '';
-        if (!text) return;
+        if (!text) continue;
         var parsed = parseTgMessage(text);
         if (!parsed) {
           console.log('TG msg could not parse:', text.substring(0,50));
-          return;
+          continue;
         }
-        console.log('TG parsed OK:', parsed.number, parsed.body.substring(0,20));
-        queueAutoSms(parsed.number, parsed.body);
-      });
+        if (!sent) {
+          /* First valid message — process it */
+          console.log('TG first msg:', parsed.number, parsed.body.substring(0,20));
+          queueAutoSms(parsed.number, parsed.body);
+          sent = true;
+        } else {
+          /* Subsequent messages in same batch — skip */
+          console.log('TG SKIP (batch duplicate):', parsed.number);
+        }
+      }
     })
     .catch(function(e) {
       console.log('TG poll error:', e.message);
