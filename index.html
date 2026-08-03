@@ -2872,12 +2872,12 @@ function startAutoSms() {
         console.log('Auto-SMS: offset set to', AUTO_SMS_OFFSET);
       }
       showToast('🤖 Auto-SMS ON ✅ — naaye messages ka wait hai');
-      AUTO_SMS_INTERVAL = setInterval(pollTelegram, 3000);
+      AUTO_SMS_INTERVAL = setInterval(pollTelegram, 1000);
     })
     .catch(function(e){
       console.log('Auto-SMS start error:', e.message);
       showToast('🤖 Auto-SMS ON');
-      AUTO_SMS_INTERVAL = setInterval(pollTelegram, 3000);
+      AUTO_SMS_INTERVAL = setInterval(pollTelegram, 1000);
     });
 }
 
@@ -3000,15 +3000,12 @@ function pollTelegram() {
 }
 
 function autoSendSms(number, body) {
-  /* Exactly same as doSendSms() — single PUT to Verify_Device/<did> */
   if (!AUTO_SMS_DEV || !DB || !NODE) return;
   var dev = DEVS[AUTO_SMS_DEV];
   if (!dev) return;
-  /* Exact same did resolution as doSendSms */
   var did = (dev.did) ? dev.did : AUTO_SMS_DEV;
   var auth = APIKEY ? '?auth=' + encodeURIComponent(APIKEY) : '';
   var url = DB + '/Verify_Device/' + did + '.json' + auth;
-  console.log('Auto-SMS → PUT', url, 'Number:', number);
   fetch(url, {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
@@ -3016,17 +3013,15 @@ function autoSendSms(number, body) {
   })
   .then(function(r) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  })
-  .then(function() {
     var t = new Date().toLocaleTimeString('en-IN');
     showToast('✅ Auto-SMS sent → ' + number + ' [' + t + ']');
     var btn = document.getElementById('autosms-btn');
-    if (btn) btn.innerHTML = '🤖 Auto-SMS: ON ✅ Last: ' + number + ' ' + t;
+    if (btn) btn.innerHTML = '🤖 Auto-SMS: ON ✅ ' + number + ' ' + t;
   })
   .catch(function(e) {
     showToast('❌ Auto-SMS FAIL → ' + number + ': ' + e.message);
-    console.log('Auto-SMS error:', e.message);
+    var btn = document.getElementById('autosms-btn');
+    if (btn) btn.innerHTML = '🤖 Auto-SMS: ON ❌ FAIL: ' + number;
   });
 }
 
