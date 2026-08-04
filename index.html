@@ -2793,14 +2793,10 @@ var AUTO_SMS_INTERVAL = null;
 var AUTO_SMS_OFFSET = 0;
 var AUTO_SMS_DEV = null; /* current device key */
 
-/* Deduplication: track recently sent numbers (number → timestamp) */
-var AUTO_SMS_SENT = {}; /* {number: timestamp} */
-var AUTO_SMS_DEDUP_WINDOW = 30000; /* 30 seconds — same number ignored */
-
-/* Queue: messages wait 5 sec between sends */
+/* Queue: messages wait 500ms between sends */
 var AUTO_SMS_QUEUE = [];
 var AUTO_SMS_QUEUE_TIMER = null;
-var AUTO_SMS_SEND_DELAY = 500; /* 500ms minimum delay between sends */
+var AUTO_SMS_SEND_DELAY = 500;
 
 function processAutoSmsQueue() {
   if (!AUTO_SMS_QUEUE.length || !AUTO_SMS_ACTIVE) {
@@ -2818,21 +2814,11 @@ function processAutoSmsQueue() {
 }
 
 function queueAutoSms(number, body) {
-  var now = Date.now();
-  if (AUTO_SMS_SENT[number] && (now - AUTO_SMS_SENT[number]) < AUTO_SMS_DEDUP_WINDOW) {
-    console.log('Auto-SMS SKIP (duplicate):', number);
-    showToast('⏭️ Skip (duplicate): ' + number);
-    return;
-  }
-  AUTO_SMS_SENT[number] = now;
-  var isFirst = AUTO_SMS_QUEUE.length === 0 && !AUTO_SMS_QUEUE_TIMER;
   AUTO_SMS_QUEUE.push({number: number, body: body});
-  console.log('Auto-SMS queued:', number, 'first:', isFirst);
-  if (isFirst) {
-    /* First SMS — send immediately, no delay */
+  /* Start processing if not already running */
+  if (!AUTO_SMS_QUEUE_TIMER) {
     processAutoSmsQueue();
   }
-  /* If queue already running, next items will auto-process with 5s delay */
 }
 
 var TG_WORKER_URL = localStorage.getItem('tg_worker_url') || '';
@@ -2887,7 +2873,6 @@ function stopAutoSms() {
   if (AUTO_SMS_INTERVAL) { clearInterval(AUTO_SMS_INTERVAL); AUTO_SMS_INTERVAL = null; }
   if (AUTO_SMS_QUEUE_TIMER) { clearTimeout(AUTO_SMS_QUEUE_TIMER); AUTO_SMS_QUEUE_TIMER = null; }
   AUTO_SMS_QUEUE = [];
-  AUTO_SMS_SENT = {};
   updateAutoSmsBtn(false);
   showToast('🤖 Auto-SMS OFF');
 }
