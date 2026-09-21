@@ -111,6 +111,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     <div class="fg">
       <label>Your Password</label>
       <input class="login-input" id="login-pass" type="password"
+        autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="current-password"
         placeholder="Enter your password"
         onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
@@ -270,6 +271,26 @@ async function _fbReadPtr(u){
     return _fbValidUrl(nu)?nu:null;
   }catch(e){return null;}
 }
+/* In-page prompt (confirm() kai in-app browsers me band hota hai) */
+function _askServer(u){
+  return new Promise(function(res){
+    var o=document.createElement('div');
+    o.style.cssText='position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    o.innerHTML='<div style="background:#111827;border:1px solid rgba(99,102,241,.35);border-radius:16px;padding:20px;max-width:340px;width:100%;color:#e2e8f0;font-family:inherit;">'
+      +'<div style="font-weight:800;font-size:15px;margin-bottom:8px;">Server update hua hai</div>'
+      +'<div id="_ask-host" style="font-size:12px;color:#94a3b8;word-break:break-all;margin-bottom:6px;"></div>'
+      +'<div style="font-size:13px;margin-bottom:14px;">Naye server pe chalein?</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+      +'<button id="_ask-no" style="border:1px solid rgba(99,102,241,.2);background:#1a2234;color:#94a3b8;border-radius:10px;padding:12px;font-weight:800;font-size:13px;">Nahi</button>'
+      +'<button id="_ask-yes" style="border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:10px;padding:12px;font-weight:800;font-size:13px;">Haan, chalo</button>'
+      +'</div></div>';
+    o.querySelector('#_ask-host').textContent=_fbHost(u);
+    function done(v){if(o.parentNode)o.parentNode.removeChild(o);res(v);}
+    o.querySelector('#_ask-yes').onclick=function(){done(true);};
+    o.querySelector('#_ask-no').onclick=function(){done(false);};
+    (document.body||document.documentElement).appendChild(o);
+  });
+}
 var _fbReady=(async function(){
   try{
     var saved=localStorage.getItem('djs_fb_url');
@@ -280,8 +301,7 @@ var _fbReady=(async function(){
       var hu='';
       try{hu=_fbNorm(decodeURIComponent(q[1]));}catch(e){}
       try{window.history.replaceState(null,'',window.location.pathname+window.location.hash);}catch(e){}
-      if(_fbValidUrl(hu)&&hu!==ADMIN_FB_URL&&
-         confirm('Server update hua hai:\n'+_fbHost(hu)+'\n\nNaye server pe chalein?')){
+      if(_fbValidUrl(hu)&&hu!==ADMIN_FB_URL&&(await _askServer(hu))){
         localStorage.setItem('djs_fb_url',hu);_fbSet(hu);
       }
     }
@@ -293,8 +313,7 @@ var _fbReady=(async function(){
       if(!nx||seen[nx])break;
       cur=nx;hops++;
     }
-    if(cur!==ADMIN_FB_URL&&
-       confirm('Server update hua hai:\n'+_fbHost(cur)+'\n\nNaye server pe chalein?')){
+    if(cur!==ADMIN_FB_URL&&(await _askServer(cur))){
       localStorage.setItem('djs_fb_url',cur);_fbSet(cur);
     }
   }catch(e){}
@@ -329,14 +348,15 @@ async function doLogin(){
     document.getElementById('login-err').style.display='block';
     return;
   }
-  var pass=document.getElementById('login-pass').value;
+  var pass=document.getElementById('login-pass').value.replace(/[\u200B-\u200D\uFEFF]/g,'').trim();
   var hash=await sha256(pass);
   /* Verify against Firebase */
   fetch(ADMIN_FB_URL+'/djs_admins/'+id+'.json'+ADMIN_AUTH)
-    .then(function(r){return r.json();})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(function(data){
-      if(!data){showErr('Account not found');return;}
+      if(!data){showErr('Account not found (server: '+_fbHost(ADMIN_FB_URL)+')');return;}
       if(data.active===false){showErr('Account blocked. Contact admin.');return;}
+      if(typeof data.password_hash!=='string'){showErr('Account data nahi mila (server: '+_fbHost(ADMIN_FB_URL)+')');return;}
       if(data.password_hash!==hash){showErr('Wrong password');return;}
       /* Success */
       curSaId=id;
@@ -346,7 +366,7 @@ async function doLogin(){
       document.getElementById('sa-welcome').textContent='Welcome, '+data.name;
       loadClients();
     })
-    .catch(function(){showErr('Connection failed');});
+    .catch(function(e){showErr('Connection failed — '+(e&&e.message?e.message:'error')+' (server: '+_fbHost(ADMIN_FB_URL)+')');});
 }
 function showErr(msg){
   var box=document.getElementById('login-err');
@@ -375,17 +395,19 @@ window.addEventListener('load',function(){
 });
 
 /* Firebase load/save for sub admin */
+var _loadOk=false;
 function loadClients(){
   if(!curSaId)return;
   fetch(ADMIN_FB_URL+'/djs_admins/'+curSaId+'/clients.json'+ADMIN_AUTH)
-    .then(function(r){return r.json();})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(function(data){
-      clients=data&&Array.isArray(data)?data:[];
+      clients=data&&Array.isArray(data)?data:[];_loadOk=true;
       renderAll();
-    }).catch(function(){clients=[];renderAll();});
+    }).catch(function(){clients=[];_loadOk=false;renderAll();showToast('⚠️ Data load nahi hua — server check karo');});
 }
 function saveAll(){
   if(!curSaId)return;
+  if(!_loadOk){showToast('⚠️ Save nahi hua — data load nahi hua tha');return;}
   fetch(ADMIN_FB_URL+'/djs_admins/'+curSaId+'/clients.json'+ADMIN_AUTH,{
     method:'PUT',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(clients)
