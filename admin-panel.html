@@ -800,7 +800,9 @@ async function saveSubAdmin(){
 function copySaLink(id){
   /* Sub admin link uses panel.html with their ID in hash */
   var base=window.location.origin+window.location.pathname.replace('admin-panel.html','panel.html');
-  var link=base+'#'+btoa('sa:'+id);
+  /* Firebase badla hua ho to link me naya Firebase bhi jodo (purana band ho tab bhi link chale) */
+  var fb=ADMIN_FB_URL!==_DEF_FB_URL?'?fb='+encodeURIComponent(ADMIN_FB_URL):'';
+  var link=base+fb+'#'+btoa('sa:'+id);
   if(navigator.clipboard)navigator.clipboard.writeText(link).catch(function(){});
   showToast('📋 Sub admin link copied!');
 }

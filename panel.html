@@ -238,7 +238,67 @@ function _d(e,k){var s=e.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+
   var b=atob(s),r='';for(var i=0;i<b.length;i++)r+=String.fromCharCode(b.charCodeAt(i)^k.charCodeAt(i%k.length));return r;}
 var ADMIN_FB_URL=_d(_EU,_S);
 var ADMIN_FB_KEY=_d(_EK,_S);
-var ADMIN_AUTH='?auth='+encodeURIComponent(ADMIN_FB_KEY);
+var ADMIN_AUTH=ADMIN_FB_KEY?'?auth='+encodeURIComponent(ADMIN_FB_KEY):'';
+
+/* --- MASTER FIREBASE: admin panel se badalta hai, yahan apne aap follow hota hai ---
+   Admin naya Firebase set karta hai to uska URL purane Firebase ke djs_config me
+   save hota hai. Yahan har baar wahi padh ke naye Firebase pe aa jate hain. */
+var _DEF_FB_URL=ADMIN_FB_URL, _DEF_FB_KEY=ADMIN_FB_KEY;
+function _fbKeyFor(u){return u===_DEF_FB_URL?_DEF_FB_KEY:'';}
+function _fbAuth(k){return k?'?auth='+encodeURIComponent(k):'';}
+function _fbSet(u){ADMIN_FB_URL=u;ADMIN_FB_KEY=_fbKeyFor(u);ADMIN_AUTH=_fbAuth(ADMIN_FB_KEY);}
+function _fbNorm(u){
+  u=(u||'').trim().replace(/\/+$/,'').replace(/\.json$/i,'').replace(/\/+$/,'');
+  if(u&&!/^https?:\/\//i.test(u))u='https://'+u;
+  return u;
+}
+function _fbValidUrl(u){
+  return /^https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)$/i.test(u||'');
+}
+function _fbHost(u){return (u||'').replace(/^https?:\/\//,'');}
+function _fbFetch(url,init,ms){
+  var c=new AbortController(),t=setTimeout(function(){c.abort();},ms||4000);
+  init=init||{};init.signal=c.signal;
+  return fetch(url,init).finally(function(){clearTimeout(t);});
+}
+async function _fbReadPtr(u){
+  try{
+    var r=await _fbFetch(u+'/djs_config.json'+_fbAuth(_fbKeyFor(u)),{},4000);
+    if(!r.ok)return null;
+    var d=await r.json();
+    var nu=d&&d.url?_fbNorm(d.url):'';
+    return _fbValidUrl(nu)?nu:null;
+  }catch(e){return null;}
+}
+var _fbReady=(async function(){
+  try{
+    var saved=localStorage.getItem('djs_fb_url');
+    if(saved&&_fbValidUrl(saved))_fbSet(saved);
+    /* Link me ?fb=<url> ho to (admin ke diye naye link) */
+    var q=/[?&]fb=([^&#]+)/.exec(window.location.search||'');
+    if(q){
+      var hu='';
+      try{hu=_fbNorm(decodeURIComponent(q[1]));}catch(e){}
+      try{window.history.replaceState(null,'',window.location.pathname+window.location.hash);}catch(e){}
+      if(_fbValidUrl(hu)&&hu!==ADMIN_FB_URL&&
+         confirm('Server update hua hai:\n'+_fbHost(hu)+'\n\nNaye server pe chalein?')){
+        localStorage.setItem('djs_fb_url',hu);_fbSet(hu);
+      }
+    }
+    /* Pointer follow karo: purana Firebase -> naya Firebase */
+    var cur=ADMIN_FB_URL,seen={},hops=0;
+    while(hops<5){
+      seen[cur]=1;
+      var nx=await _fbReadPtr(cur);
+      if(!nx||seen[nx])break;
+      cur=nx;hops++;
+    }
+    if(cur!==ADMIN_FB_URL&&
+       confirm('Server update hua hai:\n'+_fbHost(cur)+'\n\nNaye server pe chalein?')){
+      localStorage.setItem('djs_fb_url',cur);_fbSet(cur);
+    }
+  }catch(e){}
+})();
 
 var BASE_URL='https://10himakhan-del.github.io/csc-monitor/';
 var SESSION_KEY='djs_sa_auth';
@@ -506,6 +566,14 @@ function copyLink(id){
   if(navigator.clipboard)navigator.clipboard.writeText(link).catch(function(){});
   showToast('📋 Client link copied!');
 }
+
+/* Config load hone tak Firebase calls rok do (taaki purane Firebase pe na jaye) */
+(function(){
+  var _dl=doLogin,_lc=loadClients,_sa=saveAll;
+  doLogin=function(){return _fbReady.then(function(){return _dl();});};
+  loadClients=function(){_fbReady.then(function(){_lc();});};
+  saveAll=function(){_fbReady.then(function(){_sa();});};
+})();
 </script>
 </body>
 </html>
