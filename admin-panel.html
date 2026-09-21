@@ -421,9 +421,66 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
         border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--amber);">
         ⚠️ Settings save karne ke baad nayi links generate karo.
       </div>
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5;">
+          Master Firebase — clients, sub admins aur logs yahin save hote hain.</div>
+        <button class="btn btn-outline" style="width:100%;" onclick="openFbModal()">🔥 Firebase Change</button>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <button class="btn btn-gray" onclick="closeModal('modal-settings')">Cancel</button>
         <button class="btn btn-accent" onclick="saveSettings()">💾 Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MASTER FIREBASE MODAL -->
+<div class="overlay" id="modal-fb">
+  <div class="modal">
+    <div style="padding:16px 18px;background:linear-gradient(135deg,#f97316,#dc2626);
+      border-radius:20px 20px 0 0;font-weight:800;font-size:15px;color:#fff;">
+      🔥 Master Firebase
+    </div>
+    <div style="padding:16px;">
+      <div style="background:rgba(99,102,241,.1);border:1.5px solid rgba(99,102,241,.2);
+        border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12px;
+        color:#818cf8;line-height:1.6;">
+        Abhi chal raha hai:<br><b id="fb-cur" style="word-break:break-all;">—</b>
+      </div>
+      <div class="fg"><label>New Firebase URL</label>
+        <input id="fb-url" type="url" placeholder="https://xxx-default-rtdb.firebaseio.com"
+          autocapitalize="off" autocomplete="off" spellcheck="false"/></div>
+      <div class="fg"><label>Database Secret / Auth Key (optional)</label>
+        <input id="fb-key" type="password" placeholder="Rules open ho to khali chhod do"
+          autocomplete="off"/></div>
+      <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;
+        color:var(--muted);margin-bottom:14px;cursor:pointer;line-height:1.5;">
+        <input id="fb-copy" type="checkbox" checked style="margin-top:2px;"/>
+        Purana data (clients + sub admins) naye Firebase me copy karo
+      </label>
+      <div id="fb-status" style="display:none;border-radius:10px;padding:10px 12px;
+        margin-bottom:12px;font-size:12px;line-height:1.6;white-space:pre-line;
+        word-break:break-word;"></div>
+      <div id="fb-enc" style="display:none;background:var(--surface2);border:1px solid var(--border);
+        border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;
+        color:var(--muted);line-height:1.6;">
+        Ye change sirf is device/browser pe save hai. Sab devices pe permanent karne ke liye
+        file me <b>_EU</b> aur <b>_EK</b> ki values ye wali paste karo:
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <button class="btn btn-outline" style="font-size:12px;padding:8px;" onclick="copyText(_fbEnc.eu)">📋 _EU</button>
+          <button class="btn btn-outline" style="font-size:12px;padding:8px;" onclick="copyText(_fbEnc.ek)">📋 _EK</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <button class="btn btn-outline" onclick="fbTest()">🔌 Test</button>
+        <button class="btn btn-green" id="fb-go" onclick="fbSwitch()">✅ Switch</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-gray" onclick="closeModal('modal-fb')">Close</button>
+        <button class="btn btn-red" onclick="fbReset()">↩ Default pe wapas</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5;">
+        URL khali chhod ke Test dabaoge to abhi wala Firebase test hoga.
       </div>
     </div>
   </div>
@@ -473,7 +530,19 @@ function _d(e,k){var s=e.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+
   var b=atob(s),r='';for(var i=0;i<b.length;i++)r+=String.fromCharCode(b.charCodeAt(i)^k.charCodeAt(i%k.length));return r;}
 var ADMIN_FB_URL=_d(_EU,_S);
 var ADMIN_FB_KEY=_d(_EK,_S);
-var ADMIN_AUTH='?auth='+encodeURIComponent(ADMIN_FB_KEY);
+var ADMIN_AUTH=ADMIN_FB_KEY?'?auth='+encodeURIComponent(ADMIN_FB_KEY):'';
+
+/* --- MASTER FIREBASE OVERRIDE (Settings > Firebase Change se set hota hai, is device ke liye) --- */
+var _DEF_FB_URL=ADMIN_FB_URL, _DEF_FB_KEY=ADMIN_FB_KEY;
+(function(){
+  try{
+    var o=JSON.parse(localStorage.getItem('djs_fb_override')||'null');
+    if(o&&o.url){
+      ADMIN_FB_URL=o.url;ADMIN_FB_KEY=o.key||'';
+      ADMIN_AUTH=ADMIN_FB_KEY?'?auth='+encodeURIComponent(ADMIN_FB_KEY):'';
+    }
+  }catch(e){}
+})();
 
 /* --- ADMIN PASSWORD (SHA-256 hashed) --- */
 var ADMIN_HASH='e55965fa1bcd99ec3bde972420ad749f70d9957c0ece4f1388c7095b167f5c5d';
@@ -1120,6 +1189,127 @@ function saveSettings(){
   localStorage.setItem('csc_tg_id',tg);
   closeModal('modal-settings');
   showToast('✅ Settings saved!');
+}
+
+/* --- MASTER FIREBASE SWITCH --- */
+var _fbEnc={eu:'',ek:''};
+function _enc(s,k){
+  var r='';
+  for(var i=0;i<s.length;i++)r+=String.fromCharCode(s.charCodeAt(i)^k.charCodeAt(i%k.length));
+  return btoa(r).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function _fbNorm(u){
+  u=(u||'').trim().replace(/\/+$/,'').replace(/\.json$/i,'').replace(/\/+$/,'');
+  if(u&&!/^https?:\/\//i.test(u))u='https://'+u;
+  return u;
+}
+function _fbValidUrl(u){
+  return /^https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)$/i.test(u);
+}
+function _fbAuth(k){return k?'?auth='+encodeURIComponent(k):'';}
+function _fbIsCustom(){
+  try{return !!localStorage.getItem('djs_fb_override');}catch(e){return false;}
+}
+function _fbShow(msg,type){
+  var c={ok:['rgba(16,185,129,.1)','rgba(16,185,129,.3)','#10b981'],
+         err:['rgba(239,68,68,.1)','rgba(239,68,68,.3)','#ef4444'],
+         info:['rgba(245,158,11,.1)','rgba(245,158,11,.3)','#f59e0b']}[type||'info'];
+  var b=document.getElementById('fb-status');
+  b.style.background=c[0];b.style.border='1px solid '+c[1];b.style.color=c[2];
+  b.textContent=msg;b.style.display='block';
+}
+function _fbRefreshCur(){
+  document.getElementById('fb-cur').textContent=
+    ADMIN_FB_URL.replace(/^https?:\/\//,'')+(_fbIsCustom()?'  (custom)':'  (default)');
+}
+function openFbModal(){
+  closeModal('modal-settings');
+  document.getElementById('fb-url').value='';
+  document.getElementById('fb-key').value='';
+  document.getElementById('fb-copy').checked=true;
+  document.getElementById('fb-status').style.display='none';
+  document.getElementById('fb-enc').style.display='none';
+  _fbRefreshCur();
+  openModal('modal-fb');
+}
+async function _fbCheck(url,key){
+  var au=_fbAuth(key);
+  var r=await fetch(url+'/djs_ping.json'+au,{method:'PUT',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(Date.now())});
+  if(!r.ok){
+    var t='';try{t=(await r.text()).substring(0,140);}catch(e){}
+    throw new Error('HTTP '+r.status+(t?' — '+t:''));
+  }
+  fetch(url+'/djs_ping.json'+au,{method:'DELETE'}).catch(function(){});
+}
+async function fbTest(){
+  var raw=document.getElementById('fb-url').value.trim();
+  var url,key,lbl;
+  if(raw){
+    url=_fbNorm(raw);key=document.getElementById('fb-key').value.trim();lbl='Naya Firebase';
+    if(!_fbValidUrl(url)){_fbShow('URL aisa hona chahiye:\nhttps://xxx-default-rtdb.firebaseio.com','err');return;}
+  }else{
+    url=ADMIN_FB_URL;key=ADMIN_FB_KEY;lbl='Current Firebase';
+  }
+  _fbShow('Testing...','info');
+  try{
+    await _fbCheck(url,key);
+    _fbShow('✅ '+lbl+': write test pass ho gaya.','ok');
+  }catch(e){
+    _fbShow('❌ '+lbl+' fail:\n'+e.message,'err');
+  }
+}
+async function fbSwitch(){
+  var url=_fbNorm(document.getElementById('fb-url').value);
+  var key=document.getElementById('fb-key').value.trim();
+  if(!_fbValidUrl(url)){_fbShow('URL aisa hona chahiye:\nhttps://xxx-default-rtdb.firebaseio.com','err');return;}
+  if(url===ADMIN_FB_URL&&key===ADMIN_FB_KEY){_fbShow('Ye already current Firebase hai.','info');return;}
+  var btn=document.getElementById('fb-go');btn.disabled=true;
+  _fbShow('Naya Firebase test ho raha hai...','info');
+  try{await _fbCheck(url,key);}
+  catch(e){
+    _fbShow('❌ Naya Firebase connect nahi hua:\n'+e.message+'\n\nSwitch nahi kiya gaya.','err');
+    btn.disabled=false;return;
+  }
+  var log=[];
+  if(document.getElementById('fb-copy').checked){
+    _fbShow('Data copy ho raha hai...','info');
+    var nodes=[['djs_super','Clients'],['djs_admins','Sub admins']];
+    for(var i=0;i<nodes.length;i++){
+      var n=nodes[i][0],lbl=nodes[i][1];
+      try{
+        var ex=await fetch(url+'/'+n+'.json'+_fbAuth(key));
+        if(ex.ok&&(await ex.json())!==null){log.push('• '+lbl+': naye Firebase me pehle se hai, skip kiya');continue;}
+        var data=null;
+        try{var so=await fetch(ADMIN_FB_URL+'/'+n+'.json'+ADMIN_AUTH);if(so.ok)data=await so.json();}catch(e){}
+        if(data===null&&n==='djs_super'&&clients.length)data=clients;
+        if(data===null){log.push('• '+lbl+': purane Firebase se nahi mila'+(n==='djs_admins'?' (dobara add karne padenge)':''));continue;}
+        var w=await fetch(url+'/'+n+'.json'+_fbAuth(key),{method:'PUT',
+          headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+        log.push('• '+lbl+(w.ok?': copy ho gaya':': copy fail (HTTP '+w.status+')'));
+      }catch(e){log.push('• '+lbl+': copy fail ('+e.message+')');}
+    }
+  }
+  try{localStorage.setItem('djs_fb_override',JSON.stringify({url:url,key:key}));}catch(e){}
+  ADMIN_FB_URL=url;ADMIN_FB_KEY=key;ADMIN_AUTH=_fbAuth(key);
+  _fbEnc={eu:_enc(url,_S),ek:_enc(key,_S)};
+  _fbRefreshCur();
+  document.getElementById('fb-enc').style.display='block';
+  _fbShow('✅ Firebase switch ho gaya.'+(log.length?'\n'+log.join('\n'):'')
+    +'\n\nSub admin wale panel.html me bhi yahi Firebase badalna padega.','ok');
+  btn.disabled=false;
+  showToast('🔥 Firebase switched');
+  renderAll();
+}
+function fbReset(){
+  if(!_fbIsCustom()){_fbShow('Abhi default Firebase hi chal raha hai.','info');return;}
+  if(!confirm('Default Firebase (file wala) pe wapas jao?'))return;
+  try{localStorage.removeItem('djs_fb_override');}catch(e){}
+  ADMIN_FB_URL=_DEF_FB_URL;ADMIN_FB_KEY=_DEF_FB_KEY;ADMIN_AUTH=_fbAuth(ADMIN_FB_KEY);
+  _fbRefreshCur();
+  closeModal('modal-fb');
+  showToast('↩ Default Firebase');
+  renderAll();
 }
 </script>
 </body>
