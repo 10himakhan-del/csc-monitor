@@ -103,30 +103,79 @@ html{overscroll-behavior-y:none;background:var(--bg);}
   cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;color:var(--muted);}
 .dtab.active{color:var(--green);border-bottom:2px solid var(--green);}
 
-/* ===== DEVICE CARDS ===== */
-.dev-list{padding:8px 14px 80px;}
-.dev-card{background:var(--surface);border-radius:14px;margin-bottom:10px;
-  border:1px solid var(--border);border-left:3px solid var(--border);
-  overflow:hidden;transition:transform .15s,border-left-color .3s;position:relative;}
-.dev-card.is-online{border-left-color:var(--green);}
-.dev-card:active{transform:scale(.98);}
-.dev-card.just-seen::before{content:'';position:absolute;inset:0;border-radius:14px;
-  background:linear-gradient(120deg,transparent,rgba(12,156,94,.18),transparent);
+/* ===== DEVICE CARDS (redesigned) ===== */
+.dev-list{padding:10px 14px 80px;}
+
+.dev-card{
+  background:linear-gradient(155deg,#171d28 0%,#141a24 55%,#12161f 100%);
+  border-radius:16px;margin-bottom:11px;
+  border:1px solid var(--border);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 1px 2px rgba(0,0,0,.25);
+  overflow:hidden;position:relative;
+  transition:transform .18s cubic-bezier(.3,.7,.4,1),box-shadow .25s,border-color .25s;
+  opacity:0;transform:translateY(10px);
+  animation:cardIn .42s cubic-bezier(.2,.7,.3,1) forwards;
+  animation-delay:calc(var(--i,0) * 35ms);
+}
+@keyframes cardIn{to{opacity:1;transform:translateY(0);}}
+.dev-card::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;
+  background:var(--border);transition:background .3s,box-shadow .3s;}
+.dev-card.is-online::before{background:var(--green);box-shadow:0 0 10px 1px var(--green-glow);}
+.dev-card:active{transform:scale(.985);}
+.dev-card.is-online:active{box-shadow:0 0 0 1px rgba(16,185,129,.25),inset 0 1px 0 rgba(255,255,255,.03);}
+.dev-card.just-seen::after{content:'';position:absolute;inset:0;border-radius:16px;
+  background:linear-gradient(120deg,transparent,rgba(16,185,129,.16),transparent);
   background-size:200% 100%;animation:scanline 1.1s ease-out;pointer-events:none;}
 @keyframes scanline{0%{background-position:200% 0;opacity:1;}100%{background-position:-50% 0;opacity:0;}}
-.dev-inner{display:flex;align-items:center;gap:11px;padding:13px 13px 11px;cursor:pointer;}
-.dev-num{font-size:13px;font-weight:700;color:var(--muted);min-width:28px;}
-.dev-img{font-size:34px;filter:saturate(.8) brightness(1.2);}
-.dev-info{flex:1;}
-.dev-name{font-size:14px;font-weight:700;color:#ffffff;}
-.dev-id{font-size:11px;color:#6b8f7a;margin-top:2px;}
-.dev-bat{font-size:11px;color:#6b8f7a;margin-top:2px;}
-.dev-status-row{display:flex;align-items:center;justify-content:space-between;
-  padding:7px 13px;border-top:1px solid var(--border);}
-.st-on{color:var(--green);font-size:12px;font-weight:700;}
-.st-off{color:var(--muted);font-size:12px;font-weight:700;}
-.del-dev-btn{background:var(--red-soft);border:1px solid rgba(248,113,113,.3);color:var(--red);
-  border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}
+
+.dev-inner{display:flex;align-items:center;gap:12px;padding:14px 14px 12px 16px;cursor:pointer;}
+.dev-num{font-size:11px;font-weight:800;color:var(--muted);min-width:18px;
+  opacity:.65;font-variant-numeric:tabular-nums;}
+
+.dev-avatar{position:relative;width:42px;height:42px;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;border-radius:50%;font-size:19px;
+  background:linear-gradient(150deg,#232c3d,#1a2130);
+  border:1px solid var(--border);}
+.dev-card.is-online .dev-avatar{
+  background:linear-gradient(150deg,rgba(16,185,129,.22),rgba(16,185,129,.06));
+  border-color:rgba(16,185,129,.35);}
+.dev-avatar::after{content:'';position:absolute;inset:-4px;border-radius:50%;
+  border:1.5px solid var(--green);opacity:0;}
+.dev-card.is-online .dev-avatar::after{opacity:.55;animation:ringPulse 2.2s ease-out infinite;}
+@keyframes ringPulse{0%{transform:scale(.86);opacity:.6;}100%{transform:scale(1.28);opacity:0;}}
+
+.dev-info{flex:1;min-width:0;}
+.dev-name{font-size:14.5px;font-weight:700;color:#f3f6f9;letter-spacing:-.1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dev-id{font-size:11px;color:#5d7a8c;margin-top:3px;font-family:'SF Mono',ui-monospace,Menlo,monospace;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.dev-meta-row{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap;}
+.dev-bat-wrap{display:flex;align-items:center;gap:5px;}
+.dev-bat-track{width:34px;height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;}
+.dev-bat-fill{height:100%;border-radius:4px;transition:width .5s ease,background .3s;}
+.dev-bat-txt{font-size:10.5px;color:#8b98a5;font-weight:600;font-variant-numeric:tabular-nums;}
+
+.dev-status-row{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:9px 14px 10px 16px;border-top:1px solid var(--border);}
+.st-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
+  padding:4px 9px 4px 8px;border-radius:20px;letter-spacing:.1px;}
+.st-pill.st-on{color:var(--green);background:var(--green-soft);}
+.st-pill.st-off{color:var(--muted);background:rgba(255,255,255,.04);}
+.st-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.st-pill.st-on .st-dot{animation:blink 1.6s infinite;box-shadow:0 0 5px var(--green-glow);}
+.st-last{font-size:10.5px;color:#5d7a8c;font-weight:600;}
+
+.del-dev-btn{background:transparent;border:1px solid rgba(248,81,73,.22);color:#c85a56;
+  border-radius:8px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:background .15s,border-color .15s,color .15s;}
+.del-dev-btn:active{background:var(--red-soft);border-color:rgba(248,81,73,.4);color:var(--red);}
+
+.star-btn{position:absolute;top:11px;right:12px;font-size:19px;line-height:1;cursor:pointer;
+  padding:4px;color:#3a4552;user-select:none;z-index:2;transition:color .2s,transform .2s;}
+.star-btn.starred{color:#f5b40a;text-shadow:0 0 9px rgba(245,180,10,.55);}
+.star-btn.pop{animation:starPop .38s cubic-bezier(.34,1.56,.64,1);}
+@keyframes starPop{0%{transform:scale(1);}40%{transform:scale(1.45) rotate(-8deg);}100%{transform:scale(1);}}
 
 /* ===== ALL SMS ===== */
 .allsms-wrap{padding:8px 14px 80px;}
@@ -549,10 +598,12 @@ html{overscroll-behavior-y:none;background:var(--bg);}
   <div class="dash-tabs">
     <button class="dtab active" id="dt-online" onclick="switchDTab('online')">&#128994; Online</button>
     <button class="dtab inactive" id="dt-offline" onclick="switchDTab('offline')">&#128308; Offline</button>
+    <button class="dtab inactive" id="dt-star" onclick="switchDTab('star')">&#11088; Star</button>
     <button class="dtab inactive" id="dt-allsms" onclick="switchDTab('allsms')">&#128172; All SMS</button>
   </div>
   <div id="pnl-online" class="dev-list"></div>
   <div id="pnl-offline" class="dev-list" style="display:none;"></div>
+  <div id="pnl-star" class="dev-list" style="display:none;"></div>
   <div id="pnl-allsms" class="allsms-wrap" style="display:none;">
     <div class="allsms-bar">
       <span class="allsms-info" id="asms-info">-</span>
@@ -703,6 +754,7 @@ var DEVS={}, CUR=null, SEL_SIM=0;
 var SYNC_WARN_CACHE = {}; /* devKey -> {warn: true/false} */
 var TTIMER=null, SCROLL_POS=0, STIMER=null, ATIMER=null;
 var PREV_KEYS={}, infoES=null, CURTAB='online';
+var STARS={}; /* deviceKey -> true, loaded from Firebase (All_User/Stars), independent of device-written Info data */
 
 /* ===== REST API ===== */
 function mkUrl(path, extra) {
@@ -1126,6 +1178,29 @@ function launchApp(infoData) {
   procInfo(infoData);
   startInfoSSE();
   loadAdminPass();
+  loadStars();
+}
+
+function loadStars() {
+  fbGet('Stars').then(function(d) {
+    STARS = (d && typeof d === 'object') ? d : {};
+    Object.keys(DEVS).forEach(function(k) { DEVS[k].star = !!STARS[k]; });
+    renderDevLists();
+  }).catch(function() {});
+}
+
+function toggleStar(key, ev, btnEl) {
+  if (ev) ev.stopPropagation();
+  var v = !STARS[key];
+  STARS[key] = v;
+  if (DEVS[key]) DEVS[key].star = v;
+  (v ? fbSet('Stars/' + key, true) : fbDel('Stars/' + key)).catch(function() {});
+  if (btnEl) {
+    btnEl.classList.toggle('starred', v);
+    btnEl.innerHTML = v ? '&#9733;' : '&#9734;';
+    btnEl.classList.remove('pop'); void btnEl.offsetWidth; btnEl.classList.add('pop');
+  }
+  renderDevLists();
 }
 
 function doLogout() {
@@ -1138,7 +1213,7 @@ function doLogout() {
   document.getElementById('setup-screen').style.display = 'flex';
   var btn = document.getElementById('setup-btn');
   btn.disabled = false; btn.textContent = 'Connect & Open Dashboard';
-  DEVS = {}; CUR = null; PREV_KEYS = {};
+  DEVS = {}; CUR = null; PREV_KEYS = {}; STARS = {};
   SYNC_WARN_CACHE = {};
   DATA_TAB_CACHE = {}; FWD_TAB_CACHE = {};
   /* If this session was opened via a pre-configured link, show password screen again
@@ -1270,7 +1345,8 @@ function procInfo(data) {
       bat: info.Battery || info.battery || '',
       on: isOn,
       sms: (DEVS[k] && DEVS[k].sms) ? DEVS[k].sms : [],
-      sim: (DEVS[k] && DEVS[k].sim) ? DEVS[k].sim : {}
+      sim: (DEVS[k] && DEVS[k].sim) ? DEVS[k].sim : {},
+      star: !!STARS[k]
     };
   }
   DEVS = newDevs;
@@ -1313,7 +1389,7 @@ function updSmsCnt() {
 /* ===== DASH TABS ===== */
 function switchDTab(tab) {
   CURTAB = tab;
-  ['online','offline','allsms'].forEach(function(t) {
+  ['online','offline','star','allsms'].forEach(function(t) {
     document.getElementById('dt-' + t).className = t === tab ? 'dtab active' : 'dtab inactive';
     document.getElementById('pnl-' + t).style.display = t === tab ? '' : 'none';
   });
@@ -1323,18 +1399,22 @@ function switchDTab(tab) {
 
 /* ===== DEVICE LISTS ===== */
 function renderDevLists() {
-  var devs = Object.values(DEVS), online = [], offline = [];
+  var devs = Object.values(DEVS), online = [], offline = [], starred = [];
   for (var i = 0; i < devs.length; i++) {
     if (devs[i].on) online.push(devs[i]); else offline.push(devs[i]);
+    if (devs[i].star) starred.push(devs[i]);
   }
   renderDevPanel('pnl-online', online, 0);
   renderDevPanel('pnl-offline', offline, online.length);
+  renderDevPanel('pnl-star', starred, 0);
 }
 
 function renderDevPanel(pid, devs, si) {
   var el = document.getElementById(pid);
   if (!devs.length) {
-    el.innerHTML = '<div class="empty"><div class="ei">&#128241;</div><p>Koi device nahi</p></div>';
+    el.innerHTML = pid === 'pnl-star'
+      ? '<div class="empty"><div class="ei">&#11088;</div><p>Koi device star nahi kiya</p></div>'
+      : '<div class="empty"><div class="ei">&#128241;</div><p>Koi device nahi</p></div>';
     return;
   }
   el.innerHTML = '';
@@ -1342,26 +1422,39 @@ function renderDevPanel(pid, devs, si) {
   for (var i = 0; i < devs.length; i++) {
     var d = devs[i];
     var card = document.createElement('div'); card.className = 'dev-card' + (d.on ? ' is-online' : '');
+    card.style.setProperty('--i', Math.min(i, 14));
     var inner = document.createElement('div'); inner.className = 'dev-inner';
-    /* Online: green dot | Offline: last SMS time (no ping - data saver) */
-    var statusHtml = d.on
-      ? '<div style="display:flex;align-items:center;gap:4px;margin-top:3px;flex-wrap:wrap;"><span style="width:7px;height:7px;border-radius:50%;background:#0c9c5e;box-shadow:0 0 5px rgba(12,156,94,.5);animation:blink 1.5s infinite;display:inline-block;"></span><span style="font-size:10px;color:#0c9c5e;font-weight:700;">Online</span><span id="syncwarn-' + d.key + '"></span></div>'
-      : '<div id="lst-' + d.key + '" style="font-size:10px;color:#94a3b8;margin-top:3px;">Last SMS: -</div>';
+    /* Battery: colour by level, animated width fill */
+    var batNum = parseInt(d.bat, 10);
+    var batOk = !isNaN(batNum);
+    var batColor = batNum >= 50 ? 'var(--green)' : (batNum >= 20 ? '#e8a33d' : '#e8544d');
+    var batHtml = batOk
+      ? '<div class="dev-bat-wrap"><div class="dev-bat-track"><div class="dev-bat-fill" style="width:' + Math.max(4, batNum) + '%;background:' + batColor + ';"></div></div><span class="dev-bat-txt">' + batNum + '%</span></div>'
+      : '';
+    /* Online: syncwarn slot appended after pill | Offline: last-seen text next to pill */
+    var metaHtml = d.on
+      ? '<span class="st-pill st-on"><span class="st-dot"></span>Online</span><span id="syncwarn-' + d.key + '" style="font-size:10px;"></span>'
+      : '<span class="st-pill st-off"><span class="st-dot"></span>Offline</span><span class="st-last" id="lst-' + d.key + '">Last SMS: -</span>';
     inner.innerHTML =
       '<div class="dev-num">' + (si + i + 1) + '</div>' +
-      '<div class="dev-img">&#128241;</div>' +
-      '<div class="dev-info" style="flex:1;">' +
-        '<div class="dev-name">Mobile : ' + eh(d.name) + '</div>' +
-        '<div class="dev-id">Device Id : ' + eh(d.id) + '</div>' +
-        (d.bat ? '<div class="dev-bat">Battery : ' + eh(String(d.bat)) + '%</div>' : '') +
-        statusHtml +
+      '<div class="dev-avatar">&#128241;</div>' +
+      '<div class="dev-info">' +
+        '<div class="dev-name">' + eh(d.name) + '</div>' +
+        '<div class="dev-id">ID &middot; ' + eh(d.id) + '</div>' +
+        '<div class="dev-meta-row">' + batHtml + metaHtml + '</div>' +
       '</div>';
     (function(k) { inner.addEventListener('click', function() { openDev(k); }); })(d.key);
     card.appendChild(inner);
+    var starBtn = document.createElement('div');
+    starBtn.className = 'star-btn' + (d.star ? ' starred' : '');
+    starBtn.innerHTML = d.star ? '&#9733;' : '&#9734;';
+    (function(k, b) { b.addEventListener('click', function(e) { toggleStar(k, e, b); }); })(d.key, starBtn);
+    card.appendChild(starBtn);
     var sr = document.createElement('div'); sr.className = 'dev-status-row';
     var stxt = document.createElement('span');
     stxt.className = d.on ? 'st-on' : 'st-off';
-    stxt.textContent = 'Status : ' + (d.on ? 'Online User' : 'Offline User');
+    stxt.style.cssText = 'font-size:11px;font-weight:700;color:' + (d.on ? 'var(--green)' : 'var(--muted)') + ';';
+    stxt.textContent = d.on ? 'Online User' : 'Offline User';
     sr.appendChild(stxt);
     var db = document.createElement('button'); db.className = 'del-dev-btn'; db.textContent = 'Delete';
     (function(k, b) {
@@ -1591,7 +1684,10 @@ function delDev(key, btn) {
   if (!confirm('Device delete karo?')) return;
   btn.textContent = '...'; btn.disabled = true;
   fbDel('Info/' + key)
-    .then(function() { delete DEVS[key]; updSmsCnt(); renderDevLists(); showToast('Device deleted!'); })
+    .then(function() {
+      delete DEVS[key]; delete STARS[key]; fbDel('Stars/' + key).catch(function(){});
+      updSmsCnt(); renderDevLists(); showToast('Device deleted!');
+    })
     .catch(function(e) { btn.textContent = 'Delete'; btn.disabled = false; showToast('Fail: ' + e.message); });
 }
 
