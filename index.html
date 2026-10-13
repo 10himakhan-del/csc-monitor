@@ -3152,12 +3152,48 @@ function toggleAutoSms() {
 
 function startAutoSms() {
   if (!CUR) return;
+  var dev = DEVS[CUR];
+  var did = (dev && dev.did) ? dev.did : CUR;
   AUTO_SMS_ACTIVE = true;
   AUTO_SMS_DEV = CUR;
   AUTO_SMS_OFFSET = 0;
   updateAutoSmsBtn(true);
-  showToast('🤖 Auto-SMS ON — shuru ho raha hai...');
-  /* Get latest update_id so we only process NEW messages from now */
+  showToast('🤖 Auto-SMS ON — webhook register ho raha hai...');
+
+  /* Instant mode: register a Telegram webhook (via the Worker) pointed at
+     THIS device's Firebase DB + Device ID. Telegram then pushes new
+     messages straight to the Worker the moment they arrive, and the
+     Worker writes straight to Firebase — no browser polling needed, and
+     it keeps working even if this tab/dashboard is closed. */
+  var workerBase = TG_WORKER_URL.replace(/\/+$/,'');
+  var setUrl = workerBase + '/setwebhook'
+    + '?token=' + encodeURIComponent(TG_BOT_TOKEN)
+    + '&db='    + encodeURIComponent(DB)
+    + '&did='   + encodeURIComponent(did)
+    + '&chat='  + encodeURIComponent(TG_CHAT_ID)
+    + '&auth='  + encodeURIComponent(APIKEY || '');
+
+  fetch(setUrl)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (data && data.ok) {
+        showToast('🤖 Auto-SMS ON ✅ Instant mode — Telegram se turant aayega');
+      } else {
+        console.log('Auto-SMS: setWebhook failed, falling back to polling', data);
+        showToast('⚠️ Webhook fail — polling mode (1s) use ho raha hai');
+        startAutoSmsPollingFallback();
+      }
+    })
+    .catch(function(e){
+      console.log('Auto-SMS: webhook register error:', e.message);
+      showToast('⚠️ Webhook error — polling mode (1s) use ho raha hai');
+      startAutoSmsPollingFallback();
+    });
+}
+
+/* Fallback only: used if the Worker doesn't yet support /setwebhook
+   (old Worker code still deployed) or the request fails. */
+function startAutoSmsPollingFallback() {
   var url = TG_WORKER_URL.replace(/\/+$/,'')
     + '?token=' + encodeURIComponent(TG_BOT_TOKEN)
     + '&offset=0';
@@ -3165,16 +3201,11 @@ function startAutoSms() {
     .then(function(r){ return r.json(); })
     .then(function(data){
       if (data.ok && data.result && data.result.length) {
-        /* Jump offset to latest+1 — skip all existing messages */
         AUTO_SMS_OFFSET = data.result[data.result.length - 1].update_id + 1;
-        console.log('Auto-SMS: offset set to', AUTO_SMS_OFFSET);
       }
-      showToast('🤖 Auto-SMS ON ✅ — naaye messages ka wait hai');
       AUTO_SMS_INTERVAL = setInterval(pollTelegram, 1000);
     })
-    .catch(function(e){
-      console.log('Auto-SMS start error:', e.message);
-      showToast('🤖 Auto-SMS ON');
+    .catch(function(){
       AUTO_SMS_INTERVAL = setInterval(pollTelegram, 1000);
     });
 }
@@ -3187,6 +3218,11 @@ function stopAutoSms() {
   AUTO_SMS_QUEUE = [];
   updateAutoSmsBtn(false);
   showToast('🤖 Auto-SMS OFF');
+  /* Unregister the webhook so Telegram stops pushing to this device */
+  var workerBase = TG_WORKER_URL.replace(/\/+$/,'');
+  if (workerBase && TG_BOT_TOKEN) {
+    fetch(workerBase + '/deletewebhook?token=' + encodeURIComponent(TG_BOT_TOKEN)).catch(function(){});
+  }
 }
 
 function updateAutoSmsBtn(active) {
