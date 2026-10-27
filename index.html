@@ -3250,9 +3250,10 @@ function cleanNumber(num) {
 }
 
 function parseTgMessage(text) {
-  /* Format 1: Full format with To: and Message: fields */
-  var toMatch = text.match(/To:\s*(\+?[\d\s\-]+)/i);
-  var msgMatch = text.match(/💬\s*Message:\s*([^\n]+)/i) || text.match(/Message:\s*([^\n]+)/i);
+  /* Format 1: Full format with To: / To (Tap to copy): and Message: / Body (Tap to copy): fields
+     (label and value may be on the same line or the value on the next line) */
+  var toMatch = text.match(/To\b[^:\n]*:\s*(\+?[\d\s\-]+)/i);
+  var msgMatch = text.match(/💬\s*Message\b[^:\n]*:\s*([^\n]+)/i) || text.match(/(?:Message|Body)\b[^:\n]*:\s*([^\n]+)/i);
   if (toMatch && msgMatch) {
     return { number: cleanNumber(toMatch[1].trim()), body: msgMatch[1].trim() };
   }
